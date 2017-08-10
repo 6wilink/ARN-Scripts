@@ -10,9 +10,10 @@
 local function DBG(msg) end
 
 local mngr = require 'arn.mngr'
+local sfmt = string.format
 
-local arg1 = tostring(arg[1]) -- nil > 'nil'
-local arg2 = tostring(arg[2]) -- nil > 'nil'
+local arg_key = tostring(arg[1]) -- nil > 'nil'
+local arg_val = tostring(arg[2]) -- nil > 'nil'
 
 local function help()
   print "usage: "
@@ -20,15 +21,58 @@ local function help()
   print "  arn-mngr [c|channel|r|region|p|txpower|b|chanbw|f|freq] [value]"
 end
 
+local function concat_items(obj)
+    local result = ''
+    local cnt = 1
+    for i,v in pairs(obj) do
+        if (cnt % 5 == 0) then
+            result = result .. '\n'
+        else
+            if (result ~= '') then result = result .. ' | ' end
+        end
+        result = result .. sfmt('%7s = %-7s', i, v)
+        cnt = cnt + 1
+    end
+    return result
+end
+
+--[[
+TODO: 
+    1. re-design display format;
+    2. encode result with 'JSON' module.
+Tasks:
+    1. get gws raw table via "arn.mngr"
+    2. decide what to display by user input;
+]]--
+local function display(key)
+    local gws_safe_raw = mngr.SAFE_GET('with_unit')
+    if (key == 'a' or key == 'all') then
+        result = sfmt("%s", concat_items(gws_safe_raw))
+    elseif (key == 'b' or key == 'chanbw') then
+        result = sfmt("chanbw=%s", gws_safe_raw.chanbw)
+    elseif (key == 'r' or key == 'region') then
+        result = sfmt("region=%s", gws_safe_raw.region)
+    elseif (key == 'c' or key == 'channel') then
+        result = sfmt("channel=%s", gws_safe_raw.channel)
+    elseif (key == 'p' or key == 'txpower') then
+        result = sfmt("txpower=%s", gws_safe_raw.txpower)
+    elseif (key == 'f' or key == 'freq') then
+        result = sfmt("freq=%s", gws_safe_raw.freq)
+    elseif (key == 'j' or key == 'json') then
+        result = string.format('{"radio":{"chanbw":"%s","region":"%s","channel","%s","freq":"%s","txpower":"%s"}}', 
+            gws_safe_raw.chanbw, gws_safe_raw.region, gws_safe_raw.channel, gws_safe_raw.freq, gws_safe_raw.txpower)
+    end
+    return result
+end
+
 -- SAFE_SET() will call SAFE_SAVE() automatically
-if (arg1 ~= 'nil') then
-  if (arg2 ~= 'nil') then
-    DBG(string.format("> set %s=%s", arg1, arg2))
-    mngr.SAFE_SET(arg1, arg2)
+if (arg_key ~= 'nil') then
+  if (arg_val ~= 'nil') then
+    DBG(string.format("> set %s=%s", arg_key, arg_val))
+    mngr.SAFE_SET(arg_key, arg_val)
   else
-    DBG(string.format("> %s", arg1))
-    local result = mngr.SAFE_GET(arg1) or ''
-    print(result)
+    DBG(string.format("> %s", arg_key))
+    print(display(arg_key))
   end
 else
   help()

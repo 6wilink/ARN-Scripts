@@ -1,7 +1,10 @@
--- RETURN nil when data invalid
 -- by Qige <qigezhao@gmail.com>
 
 --[[
+Notes:
+    1. DO NOT call .SAFE_GET right after .SAFE_SET !!! Wait at least 1 second;
+    2. DO NOT change any config or default value UNLESS you really know;
+    3. 
 LOG
     2017.07.31  .SAFE_GET|.SAFE_SET|/etc/arn-spec
     2017.08.01  return nil|realtime|cache|freq|filter|/etc/config/arn-spec
@@ -17,6 +20,7 @@ local function DBG(msg) end
 -- load Utilities
 local serializer    = require 'qutil.serialize'
 local ccff          = require 'qutil.ccff'
+local uhf           = require 'arn.uhf'
 local util_get      = ccff.conf.get
 local util_set      = ccff.conf.set
 local vint          = ccff.val.n
@@ -30,7 +34,7 @@ local dev_hal = require 'arn.hal_raw'
 --[[
     Module:      Device Manager
     Maintainer:  Qige <qigezhao@gmail.com>
-    Last Update: 2017.08.09
+    Last Update: 2017.08.10
 ]]--
 local dev_mngr = {}
 dev_mngr.conf           = {}
@@ -41,12 +45,17 @@ dev_mngr.conf._cache    = '/tmp/.arn.cache'
 dev_mngr.default = {}
 dev_mngr.default.chanbw         = 8
 dev_mngr.default.chanbw_range   = '5 8 10 20'
+
 dev_mngr.default.region_min     = 0
 dev_mngr.default.region_max     = 1
 dev_mngr.default.freq_min       = 470
 dev_mngr.default.freq_max       = 700
+
 dev_mngr.default.txpower_min    = 5
 dev_mngr.default.txpower_max    = 33
+dev_mngr.default.rxgain_min     = -30
+dev_mngr.default.rxgain_max     = 30
+
 dev_mngr.default.cache_timeout  = 5
 
 --[[
@@ -72,7 +81,13 @@ dev_mngr.limit.freq_min         = util_get(dev_mngr.conf.arn_spec,'v1','freq_min
 dev_mngr.limit.freq_max         = util_get(dev_mngr.conf.arn_spec,'v1','freq_max')      or dev_mngr.default.freq_max
 dev_mngr.limit.txpower_min      = util_get(dev_mngr.conf.arn_spec,'v1','txpower_min')   or dev_mngr.default.txpower_min
 dev_mngr.limit.txpower_max      = util_get(dev_mngr.conf.arn_spec,'v1','txpower_max')   or dev_mngr.default.txpower_max
+dev_mngr.limit.rxgain_min       = util_get(dev_mngr.conf.arn_spec,'v1','rxgain_min')    or dev_mngr.default.rxgain_min
+dev_mngr.limit.rxgain_max       = util_get(dev_mngr.conf.arn_spec,'v1','rxgain_max')    or dev_mngr.default.rxgain_max
 dev_mngr.limit.cache_timeout    = util_get(dev_mngr.conf.arn_spec,'v1','cache_timeout') or dev_mngr.default.cache_timeout
+
+-- for temporary use
+dev_mngr.cache = {}
+dev_mngr.cache.region = nil
 
 -- Load & unserialize cache from file
 function dev_mngr.cache_load()
@@ -106,6 +121,7 @@ function dev_mngr.cache_clean()
     DBG("----> cache_clean()")
     local cache_file = dev_mngr.conf._cache
     ccff.file.write(cache_file, '')
+    dev_mngr.cache.region = nil
 end
 
 --[[
@@ -140,6 +156,8 @@ function dev_mngr.kpi_cached_raw()
         DBG("----+ cache valid")
         radio_hal = cache
     end
+    if ((not radio_hal) or type(radio_hal) ~= 'table') then radio_hal = {} end
+    radio_hal.ts = nil
     return radio_hal
 end
 
@@ -162,69 +180,18 @@ function dev_mngr.kpi_realtime_raw()
 end
 
 --[[
-FIXME: 
-    1. Suitable for UHF, but wrong in VHF
-Tasks: 
-    1. frequency to region/channel number
-Frequency Formular:
-    Region 0: 14 - 473, f = 470 + 6 * (0.5 + ch - 14)
-    Region 1: 21 - 474, f = 470 + 8 * (0.5 + ch - 21)
-]]--
-function dev_mngr.freq_to_channel(region, freq)
-    DBG(sfmt("--------> (FIXME) freq_to_channel(UHF r=%s, f=%s)", region or '-', freq or '-'))
-    local i, channel
-    local f = vint(freq)
-
-    if (freq < dev_mngr.limit.freq_min or freq > dev_mngr.limit.freq_max) then
-        DBG("--------+ Bad frequency")
-        channel = nil
-    else
-        if (region > 0) then
-            channel = 21
-            for i=474,f+8,8 do
-                if (i >= f) then break end
-                channel = channel + 1
-            end
-        else
-            channel = 14
-            for i=473,f+6,6 do
-                if (i >= f) then break end
-                channel = channel + 1
-            end
-        end
-        DBG(sfmt("--------+ Calculate channel number (%s)", channel))
-    end
-    return channel
-end
-
---[[
-FIXME: 
-    1. Suitable for UHF, but wrong in VHF
-Frequency formular
-    Region 0: f = 473 + (ch - 14) * 6
-    Region 1: f = 474 + (ch - 21) * 8
-]]--
-function dev_mngr.channel_to_freq(region, channel)
-    DBG(sfmt("--------> (FIXME) channel_to_freq(UHF r=%s, c=%s)", region, channel))
-    local freq = 470
-    if (region > 0) then
-        freq = freq + (0.5 + channel - 21) * 8
-    else
-        freq = freq + (0.5 + channel - 14) * 6
-    end
-    return freq
-end
-
-
---[[
+Requires:
+    Make sure you have filter_region() before filter_chnanel()
+    to use dev_mngr.cache.region
 Tasks:
     1. Limit frequency range;
     2. Convert frequency to channel number based on region
 ]]--
-function dev_mngr.filter_channel(region, value)
-    DBG(sfmt("--------> (FIXME) filter_channel(UHF r=%s, c=%s)", region or '-', value or '-'))
-    local ch_min = dev_mngr.freq_to_channel(region, dev_mngr.limit.freq_min)
-    local ch_max = dev_mngr.freq_to_channel(region, dev_mngr.limit.freq_max)
+function dev_mngr.filter_channel(value)
+    DBG(sfmt("--------> (FIXME) filter_channel(UHF c=%s)", value or '-'))
+    local region = dev_mngr.cache.region
+    local ch_min = uhf.freq_to_channel(region, dev_mngr.limit.freq_min)
+    local ch_max = uhf.freq_to_channel(region, dev_mngr.limit.freq_max)
     return vlimit(value, ch_min, ch_max)
 end
 
@@ -239,7 +206,10 @@ function dev_mngr.filter_region(value)
     local vmin = dev_mngr.limit.region_min
     local vmax = dev_mngr.limit.region_max
     DBG(sfmt("--------# region range = [min %s, max %s]", vmin, vmax))
-    return vlimit(v, vmin, vmax)
+    
+    local region = vlimit(v, vmin, vmax)
+    dev_mngr.cache.region = region
+    return region
 end
 
 --[[
@@ -256,6 +226,15 @@ function dev_mngr.filter_txpower(value)
     local vmin = dev_mngr.limit.txpower_min
     local vmax = dev_mngr.limit.txpower_max
     DBG(sfmt("--------# txpower range = [min %s, max %s]", vmin, vmax))
+    return vlimit(v, vmin, vmax)
+end
+
+function dev_mngr.filter_rxgain(value)
+    DBG(sfmt("--------> filter_rxgain(p=%s)", value or '-'))
+    local v = vint(value)
+    local vmin = dev_mngr.limit.rxgain_min
+    local vmax = dev_mngr.limit.rxgain_max
+    DBG(sfmt("--------# rxgain range = [min %s, max %s]", vmin, vmax))
     return vlimit(v, vmin, vmax)
 end
 
@@ -277,6 +256,49 @@ function dev_mngr.filter_chanbw(value)
         end
     end
     return chanbw
+end
+
+function dev_mngr.filter_item(item, value)
+    local result
+    if (item == 'region') then
+        result = dev_mngr.filter_region(value)
+    elseif (item == 'channo') then
+        result = dev_mngr.filter_channel(value)
+    elseif (item == 'txpwr') then
+        result = dev_mngr.filter_txpower(value)
+    elseif (item == 'chanbw') then
+        result = dev_mngr.filter_chanbw(value)
+    elseif (item == 'rxgain') then
+        result = dev_mngr.filter_rxgain(value)
+    else
+        result = value
+    end
+    return result
+end
+
+function dev_mngr.filter_item_append_unit(item, value)
+    local result
+    if (item == 'region') then
+        local region = dev_mngr.filter_region(value)
+        if (region > 0) then
+            result = region .. ' (8M)'
+        else
+            result = region .. ' (6M)'
+        end
+    elseif (item == 'channo') then
+        result = dev_mngr.filter_channel(value)
+    elseif (item == 'txpwr') then
+        result = dev_mngr.filter_txpower(value) .. ' dBm'
+    elseif (item == 'chanbw') then
+        result = dev_mngr.filter_chanbw(value) .. ' MHz'
+    elseif (item == 'rxgain') then
+        result = dev_mngr.filter_rxgain(value) .. ' db'
+    elseif (item == 'freq') then
+        result = value .. ' MHz'
+    else
+        result = value
+    end
+    return result
 end
 
 --[[
@@ -307,10 +329,16 @@ function dev_mngr.set_with_filter(key, value)
         local channel = value
         if (key == 'freq') then
             key = 'channel'
-            channel = dev_mngr.freq_to_channel(region, value)
+            local freq = value
+            if (freq < dev_mngr.limit.freq_min or freq > dev_mngr.limit.freq_max) then
+                DBG("--------+ Bad frequency")
+                channel = nil
+            else
+                channel = uhf.freq_to_channel(region, value)
+            end
         end
-        val = dev_mngr.filter_channel(region, channel)
-        print(sfmt("set channel to %s (freq=%s)", channel, dev_mngr.channel_to_freq(region, channel)))
+        val = dev_mngr.filter_channel(channel)
+        print(sfmt("set channel to %s (freq=%s)", channel, uhf.channel_to_freq(region, channel)))
     elseif (key == 'region') then
         DBG("--+ set region")
         val = dev_mngr.filter_region(value)
@@ -360,75 +388,36 @@ end
 
 --[[
 TODO:
-    Handle display output in format
+    Handle return result
 Range:
     Public API
 Tasks:
     1. Get raw "table" via kpi_cached_raw()
-    2. Pass filter before display
+    2. Pass filter before return
     3. Return string by user's request
 ]]--
-function dev_mngr.SAFE_GET(key)
+function dev_mngr.SAFE_GET(with_unit)
     DBG("> SAFE_GET()")
-    local result
-    -- [a|all|c|channel|r|region|p|txpower|b|chanbw]
-    if (key) then
-        DBG("+ get raw result (+cache)")
-        local gws_raw = dev_mngr.kpi_cached_raw() or {}
-        DBG("+ start filter result")
-        local chanbw    = dev_mngr.filter_chanbw(gws_raw.chanbw)
-        local region    = dev_mngr.filter_region(gws_raw.region)
-        local channel   = dev_mngr.filter_channel(region, gws_raw.channel)
-        local freq      = dev_mngr.channel_to_freq(region, channel)
-        local txpower   = dev_mngr.filter_txpower(gws_raw.txpower)
-        DBG("+ result is safe to use")
-        -- decide what to display
-        -- TODO: display format; detect each param key=value pairs
-        if (key == 'a' or key == 'all') then
-            result = sfmt("Tx> chanbw: %s MHz | region: %s | channel: %s (freq: %s MHz) | txpower: %s dBm", 
-                chanbw, region, channel, freq, txpower)
-        elseif (key == 'b' or key == 'chanbw') then
-            result = sfmt("chanbw=%s", chanbw)
-        elseif (key == 'r' or key == 'region') then
-            result = sfmt("region=%s", region)
-        elseif (key == 'c' or key == 'channel') then
-            result = sfmt("channel=%s", channel)
-        elseif (key == 'p' or key == 'txpower') then
-            result = sfmt("txpower=%s", txpower)
-        elseif (key == 'f' or key == 'freq') then
-            result = sfmt("freq=%s", freq)
-        elseif (key == 'ARRAY') then
-            result = {}
-            result.chanbw   = chanbw
-            result.region   = region
-            result.channel  = channel
-            result.freq     = freq
-            result.txpower  = txpower
-        end
-    end
-    DBG("+ return result")
-    return result
-end
+    local result = {}
 
---[[
-Range: 
-    Public API
-Tasks:
-    1. Get safe "table" via SAFE_GET()
-    2. Print in JSON format
-TODO:
-    1. Encode with "json" module
-]]--
-function dev_mngr.SAFE_GET_JSON(key)
-    DBG("> SAFE_GET_JSON()")
-    local result
-    -- [a|all|b|abb|r|radio]
-    if (key) then
-        local gws_safe_raw = dev_mngr.SAFE_GET('ARRAY')
-        DBG("+ format result to json")
-        result = string.format('{"radio":{"chanbw":"%s","region":"%s","channel","%s","freq":"%s","txpower":"%s"}}', 
-            gws_safe_raw.chanbw, gws_safe_raw.region, gws_safe_raw.channel, gws_safe_raw.freq, gws_safe_raw.txpower)
+    DBG("+ get raw result (+cache)")
+    local gws_raw = dev_mngr.kpi_cached_raw() or {}
+
+    -- filter each item before return
+    DBG("+ start filter result")
+    local func = dev_mngr.filter_item
+    if (with_unit) then func = dev_mngr.filter_item_append_unit end
+    
+    -- filter region first, to ENSURE filter_channel get right region cache value
+    if (gws_raw.region) then func('region', gws_raw.region) end
+
+    --table.sort(gws_raw, function(a, b) return (tonumber(a) > tonumber(b)) end)
+    for i,v in pairs(gws_raw) do
+        result[i] = func(i, v)
     end
+    DBG("+ result is safe to use")
+
+    DBG("+ return result")
     return result
 end
 

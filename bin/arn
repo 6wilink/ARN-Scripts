@@ -1,7 +1,6 @@
 #!/bin/sh
 
 ARN_MNGR=/usr/sbin/arn-mngr
-ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
 
 help() {
   echo "usage: "
@@ -15,7 +14,7 @@ help() {
 while getopts "jacC:rR:bB:pP:fF:h" OPT; do
   case "$OPT" in
     j)
-      $ARN_MNGR_JSON all;;
+      $ARN_MNGR json;;
     f)
       $ARN_MNGR freq;;
     F)
