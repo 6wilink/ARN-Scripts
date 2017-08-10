@@ -1,0 +1,45 @@
+#!/bin/sh
+
+ARN_MNGR=/usr/sbin/arn-mngr
+ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
+
+help() {
+  echo "usage: "
+  echo "  arn [-a] [-c] [-r] [-p] [-b] [-f]"
+  echo "  arn [-C n] [-R 0|1] [-B 6|8|16|24] [-P n] [-F n]"
+  echo "  arn -j -a"
+}
+
+# FIXME: add all common commands
+# TODO: exit when got a valid option
+while getopts "jacC:rR:bB:pP:fF:h" OPT; do
+  case "$OPT" in
+    j)
+      $ARN_MNGR_JSON all;;
+    f)
+      $ARN_MNGR freq;;
+    F)
+      $ARN_MNGR freq $OPTARG;;
+    c)
+      $ARN_MNGR channel;;
+    C)
+      $ARN_MNGR channel $OPTARG;;
+    r)
+      $ARN_MNGR region;;
+    R)
+      $ARN_MNGR region $OPTARG;;
+    p)
+      $ARN_MNGR txpower;;
+    P)
+      $ARN_MNGR txpower $OPTARG;;
+    b)
+      $ARN_MNGR chanbw;;
+    B)
+      $ARN_MNGR chanbw $OPTARG;;
+    a)
+      $ARN_MNGR all;;
+    h|?)
+      help;;
+  esac
+done
+shift $((OPTIND - 1))

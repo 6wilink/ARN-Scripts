@@ -1,0 +1,35 @@
+#!/usr/bin/lua
+-- ARN Device Manager
+-- filter all invalid value, replace with valid value
+-- read limits from "/etc/config/arn-spec"
+-- finally, set via "arn.hal_raw"
+-- "arn.mngr" provide CACHE
+-- by Qige <qigezhao@gmail.com>
+
+--local DBG = print
+local function DBG(msg) end
+
+local mngr = require 'arn.mngr'
+
+local arg1 = tostring(arg[1]) -- nil > 'nil'
+local arg2 = tostring(arg[2]) -- nil > 'nil'
+
+local function help()
+  print "usage: "
+  print "  arn-mngr [a|all|c|channel|r|region|p|txpower|b|chanbw|f|freq]"
+  print "  arn-mngr [c|channel|r|region|p|txpower|b|chanbw|f|freq] [value]"
+end
+
+-- SAFE_SET() will call SAFE_SAVE() automatically
+if (arg1 ~= 'nil') then
+  if (arg2 ~= 'nil') then
+    DBG(string.format("> set %s=%s", arg1, arg2))
+    mngr.SAFE_SET(arg1, arg2)
+  else
+    DBG(string.format("> %s", arg1))
+    local result = mngr.SAFE_GET(arg1) or ''
+    print(result)
+  end
+else
+  help()
+end
