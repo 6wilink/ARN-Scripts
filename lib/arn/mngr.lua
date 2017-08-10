@@ -98,13 +98,14 @@ function dev_mngr.cache_save(cache)
         cache_raw = serializer.serialize(cache)
         ccff.file.write(cache_file, cache_raw)
     else
-        DBG("----+ NO data, do nothing")
+        DBG("----+ NO or bad data, do nothing")
     end
 end
 
 function dev_mngr.cache_clean()
     DBG("----> cache_clean()")
-    dev_mngr.cache_save(nil)
+    local cache_file = dev_mngr.conf._cache
+    ccff.file.write(cache_file, '')
 end
 
 --[[
@@ -149,7 +150,7 @@ Tasks:
 ]]--
 function dev_mngr.kpi_realtime_raw()
     DBG("------> kpi_realtime()")
-    local radio_hal_raw = dev_hal.HAL_GET()
+    local radio_hal_raw = dev_hal.HAL_GET_RT()
     if (radio_hal_raw) then
         DBG("------+ fresh result from HAL (un-filtered)")
     else
@@ -327,12 +328,14 @@ function dev_mngr.set_with_filter(key, value)
     end
     -- set via HAL Layer
     DBG("--+ call HAL_SET()")
-    result = dev_hal.HAL_SET(key, val)
-    if (result == 0) then
+    result = dev_hal.HAL_SET_RT(key, val)
+    if (result) then
+        print(sfmt("err: set %s=%s failed", key, val))
+    else
         DBG("--+ call save_config()")
         dev_mngr.save_config(key, val)
-    else
-        print(smft("err: set %s=%s failed", key, val))
+        -- timeout & clean cache immediately
+        dev_mngr.cache_clean()
     end
     return result
 end
@@ -356,6 +359,8 @@ function dev_mngr.save_config(key, value)
 end
 
 --[[
+TODO:
+    Handle display output in format
 Range:
     Public API
 Tasks:
@@ -371,32 +376,34 @@ function dev_mngr.SAFE_GET(key)
         DBG("+ get raw result (+cache)")
         local gws_raw = dev_mngr.kpi_cached_raw() or {}
         DBG("+ start filter result")
-        local chanbw = dev_mngr.filter_chanbw(gws_raw.chanbw)
-        local region = dev_mngr.filter_region(gws_raw.region)
-        local channel = dev_mngr.filter_channel(region, gws_raw.channel)
-        local freq = dev_mngr.channel_to_freq(region, channel)
-        local txpower = dev_mngr.filter_txpower(gws_raw.txpower)
+        local chanbw    = dev_mngr.filter_chanbw(gws_raw.chanbw)
+        local region    = dev_mngr.filter_region(gws_raw.region)
+        local channel   = dev_mngr.filter_channel(region, gws_raw.channel)
+        local freq      = dev_mngr.channel_to_freq(region, channel)
+        local txpower   = dev_mngr.filter_txpower(gws_raw.txpower)
         DBG("+ result is safe to use")
+        -- decide what to display
+        -- TODO: display format; detect each param key=value pairs
         if (key == 'a' or key == 'all') then
-            result = string.format("chanbw=%s\nregion=%s\nchannel=%s\nfreq=%s\ntxpower=%s", 
+            result = sfmt("Tx> chanbw: %s MHz | region: %s | channel: %s (freq: %s MHz) | txpower: %s dBm", 
                 chanbw, region, channel, freq, txpower)
         elseif (key == 'b' or key == 'chanbw') then
-            result = string.format("chanbw=%s", chanbw)
+            result = sfmt("chanbw=%s", chanbw)
         elseif (key == 'r' or key == 'region') then
-            result = string.format("region=%s", region)
+            result = sfmt("region=%s", region)
         elseif (key == 'c' or key == 'channel') then
-            result = string.format("channel=%s", channel)
+            result = sfmt("channel=%s", channel)
         elseif (key == 'p' or key == 'txpower') then
-            result = string.format("txpower=%s", txpower)
+            result = sfmt("txpower=%s", txpower)
         elseif (key == 'f' or key == 'freq') then
-            result = string.format("freq=%s", freq)
+            result = sfmt("freq=%s", freq)
         elseif (key == 'ARRAY') then
             result = {}
-            result.chanbw = chanbw
-            result.region = region
-            result.channel = channel
-            result.freq = freq
-            result.txpower = txpower
+            result.chanbw   = chanbw
+            result.region   = region
+            result.channel  = channel
+            result.freq     = freq
+            result.txpower  = txpower
         end
     end
     DBG("+ return result")
