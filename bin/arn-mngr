@@ -9,6 +9,7 @@
 --local DBG = print
 local function DBG(msg) end
 
+local version = 'ARN-Cli (+HAL +Cache +5K) v2017.08.11 '
 local mngr = require 'arn.mngr'
 local sfmt = string.format
 
@@ -17,7 +18,7 @@ local arg_val = tostring(arg[2]) -- nil > 'nil'
 
 local function help()
   print "usage: "
-  print "  arn-mngr [a|all|c|channel|r|region|p|txpower|b|chanbw|f|freq]"
+  print "  arn-mngr [a|all]"
   print "  arn-mngr [c|channel|r|region|p|txpower|b|chanbw|f|freq] [value]"
 end
 
@@ -25,14 +26,65 @@ local function concat_items(obj)
     local result = ''
     local cnt = 1
     for i,v in pairs(obj) do
-        if (cnt % 5 == 0) then
-            result = result .. '\n'
-        else
-            if (result ~= '') then result = result .. ' | ' end
+        -- in case v is 'table'
+        if (v and type(v) ~= 'table') then
+            if (cnt % 5 == 0) then
+                result = result .. '\n'
+            else
+                if (result ~= '') then result = result .. ' | ' end
+            end
+            result = result .. sfmt('%7s: %-8s', i, v)
+            cnt = cnt + 1
         end
-        result = result .. sfmt('%7s = %-7s', i, v)
-        cnt = cnt + 1
     end
+    return result
+end
+
+local function valid_signal(signal, noise)
+    if (signal and noise and signal > noise) then
+        return signal
+    end
+    return '---'
+end
+
+local function calc_snr(signal, noise)
+    if (signal and noise and signal > noise) then
+        return signal - noise
+    end
+    return '---'
+end
+
+local function format_abb(obj)
+    local result = ''
+    
+    local s1, s2
+    s1 = sfmt('   SSID: %s\n', obj.ssid or '---')
+    result = result .. s1
+
+    s2 = sfmt('  BSSID: %-28s\n', obj.bssid or '---')
+    result = result .. s2
+
+    s1 = sfmt('  Noise: %-4s dBm |  Signal: %-4s dBm |     SNR: %-8s | %s\n', 
+            obj.noise, valid_signal(obj.signal, obj.noise), calc_snr(obj.signal, obj.noise), obj.mode)
+    result = result .. s1 .. '\n'
+    
+    local peers = obj.peers
+    if (peers and type(peers) == 'table' and #peers > 0) then
+        for idx,peer in pairs(peers) do
+            s2 = sfmt(' Link#%s: %s | RSSI: %s/%s/%s | Rx %s/%s | Tx %s/%s | %s ms\n', 
+                    idx, peer.wmac, valid_signal(peer.signal, peer.noise), peer.noise, calc_snr(peer.signal, peer.noise), 
+                        peer.rx_mcs, peer.rx_br, peer.tx_mcs, peer.tx_br, peer.inactive)
+            result = result .. s2
+        end
+    else
+        s2 = sfmt('  Links: (not connected)\n')
+        result = result .. s2
+    end
+    
+    return result
+end
+local function format_radio(key, obj)
+    local result = sfmt("%s", concat_items(obj))
     return result
 end
 
@@ -44,36 +96,28 @@ Tasks:
     1. get gws raw table via "arn.mngr"
     2. decide what to display by user input;
 ]]--
-local function display(key)
+local function print_with_filter(key)
     local gws_safe_raw = mngr.SAFE_GET('with_unit')
-    if (key == 'a' or key == 'all') then
-        result = sfmt("%s", concat_items(gws_safe_raw))
-    elseif (key == 'b' or key == 'chanbw') then
-        result = sfmt("chanbw=%s", gws_safe_raw.chanbw)
-    elseif (key == 'r' or key == 'region') then
-        result = sfmt("region=%s", gws_safe_raw.region)
-    elseif (key == 'c' or key == 'channel') then
-        result = sfmt("channel=%s", gws_safe_raw.channel)
-    elseif (key == 'p' or key == 'txpower') then
-        result = sfmt("txpower=%s", gws_safe_raw.txpower)
-    elseif (key == 'f' or key == 'freq') then
-        result = sfmt("freq=%s", gws_safe_raw.freq)
-    elseif (key == 'j' or key == 'json') then
-        result = string.format('{"radio":{"chanbw":"%s","region":"%s","channel","%s","freq":"%s","txpower":"%s"}}', 
-            gws_safe_raw.chanbw, gws_safe_raw.region, gws_safe_raw.channel, gws_safe_raw.freq, gws_safe_raw.txpower)
-    end
-    return result
+    local gws_safe_abb = gws_safe_raw.abb_safe
+    local gws_safe_radio = gws_safe_raw.radio_safe
+    local result
+
+    result = format_abb(gws_safe_abb) .. '\n'
+    result = result .. format_radio(key, gws_safe_radio) .. '\n'
+
+    print(result)
 end
 
 -- SAFE_SET() will call SAFE_SAVE() automatically
 if (arg_key ~= 'nil') then
-  if (arg_val ~= 'nil') then
-    DBG(string.format("> set %s=%s", arg_key, arg_val))
-    mngr.SAFE_SET(arg_key, arg_val)
-  else
-    DBG(string.format("> %s", arg_key))
-    print(display(arg_key))
-  end
+    if (arg_val ~= 'nil') then
+        DBG(sfmt("> set %s=%s", arg_key, arg_val))
+        mngr.SAFE_SET(arg_key, arg_val)
+    else
+        print(sfmt('%80s', version))
+        DBG(sfmt("> %s", arg_key))
+        print_with_filter(arg_key)
+    end
 else
-  help()
+    help()
 end

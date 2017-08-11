@@ -11,6 +11,7 @@ LOG
     2017.08.09  cache file|serialize|unserialize|vint|
                 DBG|default|filter_chanbw|freq_to_channel|channel_to_freq|
                 sfmt|ssplit
+    2017.08.11  abb_rt|radio_cache|cache_expires_until
 ]]--
 
 -- DEBUG USE ONLY
@@ -37,10 +38,11 @@ local dev_hal = require 'arn.hal_raw'
     Last Update: 2017.08.10
 ]]--
 local dev_mngr = {}
-dev_mngr.conf           = {}
-dev_mngr.conf.arn_spec  = 'arn-spec'
-dev_mngr.conf.config    = 'arn'
-dev_mngr.conf._cache    = '/tmp/.arn.cache'
+dev_mngr.conf = {}
+dev_mngr.conf.arn_spec          = 'arn-spec'
+dev_mngr.conf.config            = 'arn'
+dev_mngr.conf._cache            = '/tmp/.arn-radio.cache'
+dev_mngr.conf.valid_after_set   = 2
 
 dev_mngr.default = {}
 dev_mngr.default.chanbw         = 8
@@ -56,7 +58,7 @@ dev_mngr.default.txpower_max    = 33
 dev_mngr.default.rxgain_min     = -30
 dev_mngr.default.rxgain_max     = 30
 
-dev_mngr.default.cache_timeout  = 5
+dev_mngr.default.cache_timeout  = 30
 
 --[[
 Tasks:
@@ -87,7 +89,7 @@ dev_mngr.limit.cache_timeout    = util_get(dev_mngr.conf.arn_spec,'v1','cache_ti
 
 -- for temporary use
 dev_mngr.cache = {}
-dev_mngr.cache.region = nil
+dev_mngr.cache.region           = nil -- cache region before filter_channel()
 
 -- Load & unserialize cache from file
 function dev_mngr.cache_load()
@@ -103,17 +105,29 @@ end
 
 -- Save cache with ts to file
 -- @condition pass in 'table'
-function dev_mngr.cache_save(cache)
+function dev_mngr.cache_save(cache, ts)
     DBG("----> cache_save()")
     local cache_raw
     local cache_file = dev_mngr.conf._cache
     if (cache and type(cache) == 'table') then
         DBG("----+ save cache to file")
-        cache.ts = os.time()
+        cache.ts = ts or os.time()
         cache_raw = serializer.serialize(cache)
         ccff.file.write(cache_file, cache_raw)
     else
         DBG("----+ NO or bad data, do nothing")
+    end
+end
+
+-- set cache TIMEOUT ts
+function dev_mngr.cache_expires_until(sec)
+    local now_ts = os.time()
+    local until_ts = now_ts - dev_mngr.limit.cache_timeout + sec
+    DBG(sfmt("----+ cache will be expired in %ds (target=%d,now=%d)", sec, until_ts, now_ts))
+    
+    local cache = dev_mngr.cache_load()
+    if (cache and type(cache) == 'table') then
+        dev_mngr.cache_save(cache, until_ts)
     end
 end
 
@@ -122,6 +136,7 @@ function dev_mngr.cache_clean()
     local cache_file = dev_mngr.conf._cache
     ccff.file.write(cache_file, '')
     dev_mngr.cache.region = nil
+    dev_mngr.cache.valid_until = nil
 end
 
 --[[
@@ -132,7 +147,14 @@ Tasks:
 ]]--
 function dev_mngr.kpi_cached_raw()
     DBG("--> kpi_cached_raw()")
-    local radio_hal
+
+    local result = {}
+    local abb_safe_rt, radio_hal
+    
+    -- ARNAnalogBaseband need realtime result (return instantly)
+    abb_safe_rt = dev_mngr.kpi_abb_safe_rt_raw()
+    if ((not abb_safe_rt) or type(abb_safe_rt) ~= 'table') then abb_safe_rt = {} end
+    abb_safe_rt.ts = nil
 
     -- Get cache, read cache.ts
     local cache = dev_mngr.cache_load()
@@ -147,18 +169,22 @@ function dev_mngr.kpi_cached_raw()
         cache_ts = 0
     end  
     local cache_elapsed = now_ts - cache_ts
+    --DBG(sfmt("----+ cache ts (now=%d, eclapsed=%d, cache=%d)", now_ts, cache_elapsed, cache_ts))
     
-    if (cache_ts == 0 or cache_elapsed >= cache_timeout) then
-        DBG("----+ cache timeout, require update right away")
-        radio_hal = dev_mngr.kpi_realtime_raw()
-        dev_mngr.cache_save(radio_hal)
-    else
-        DBG("----+ cache valid")
+    if (cache_ts > 0 and cache_elapsed < cache_timeout) then
+        DBG(sfmt("----+ cache valid used for %ds, max %ds", cache_elapsed, dev_mngr.limit.cache_timeout))
         radio_hal = cache
+    else
+        DBG("----+ cache timeout, require update right away")
+        radio_hal = dev_mngr.kpi_radio_rt_raw()
+        dev_mngr.cache_save(radio_hal)
     end
     if ((not radio_hal) or type(radio_hal) ~= 'table') then radio_hal = {} end
     radio_hal.ts = nil
-    return radio_hal
+
+    result.abb_safe_rt = abb_safe_rt
+    result.radio_hal = radio_hal
+    return result
 end
 
 --[[
@@ -166,13 +192,31 @@ Tasks:
     1. Read data via HAL
     2. Without filter, unsafe
 ]]--
-function dev_mngr.kpi_realtime_raw()
-    DBG("------> kpi_realtime()")
-    local radio_hal_raw = dev_hal.HAL_GET_RT()
-    if (radio_hal_raw) then
-        DBG("------+ fresh result from HAL (un-filtered)")
+function dev_mngr.kpi_abb_safe_rt_raw()
+    DBG("------> kpi_abb_safe_rt_raw()")
+    local abb_raw = dev_hal.HAL_GET_ABB_SAFE_RT()
+    if (abb_raw) then
+        DBG("------+ fresh result from HAL.AnalogBaseband (un-filtered) < noise=" .. abb_raw.noise or '-')
     else
-        DBG("------+ NO result from HAL")
+        DBG("------+ NO result from HAL.AnalogBaseband")
+        -- should keep old cache file content
+        --dev_mngr.cache_clean()
+    end
+    return abb_raw
+end
+
+--[[
+Tasks:
+    1. Read data via HAL
+    2. Without filter, unsafe
+]]--
+function dev_mngr.kpi_radio_rt_raw()
+    DBG("------> kpi_radio_rt_raw()")
+    local radio_hal_raw = dev_hal.HAL_GET_RADIO_RT()
+    if (radio_hal_raw) then
+        DBG("------+ fresh result from HAL.ARNRadio (un-filtered)")
+    else
+        DBG("------+ NO result from HAL.ARNRadio")
         -- should keep old cache file content
         --dev_mngr.cache_clean()
     end
@@ -258,6 +302,16 @@ function dev_mngr.filter_chanbw(value)
     return chanbw
 end
 
+function dev_mngr.filter_mode(value)
+    local result = 'ear'
+    if (value == 'CAR' or value == 'car') then
+        result = 'car'
+    elseif (value == 'MESH' or value == 'mesh') then
+        result = 'mesh'
+    end
+    return result
+end
+
 function dev_mngr.filter_item(item, value)
     local result
     if (item == 'region') then
@@ -308,7 +362,7 @@ Tasks:
     1. Wrapper of set_with_filter()
 ]]--
 function dev_mngr.SAFE_SET(key, value)
-    DBG("> SAFE_SET()")
+    DBG(sfmt("> SAFE_SET(key=%s,value=%s)", key, value))
     return dev_mngr.set_with_filter(key, value)
 end
 
@@ -325,7 +379,9 @@ function dev_mngr.set_with_filter(key, value)
     if (key == 'channel' or key == 'freq') then
         DBG("--+ set channel")
         local dev_hal = dev_mngr.kpi_cached_raw() or {}
-        local region = dev_mngr.filter_region(dev_hal.region, value)
+        local radio_hal = dev_hal.radio_hal
+        local region = dev_mngr.filter_region(radio_hal.region)
+        
         local channel = value
         if (key == 'freq') then
             key = 'channel'
@@ -338,7 +394,7 @@ function dev_mngr.set_with_filter(key, value)
             end
         end
         val = dev_mngr.filter_channel(channel)
-        print(sfmt("set channel to %s (freq=%s)", channel, uhf.channel_to_freq(region, channel)))
+        print(sfmt("set channel to %s (freq=%s)", val, uhf.channel_to_freq(region, val)))
     elseif (key == 'region') then
         DBG("--+ set region")
         val = dev_mngr.filter_region(value)
@@ -362,8 +418,8 @@ function dev_mngr.set_with_filter(key, value)
     else
         DBG("--+ call save_config()")
         dev_mngr.save_config(key, val)
-        -- timeout & clean cache immediately
-        dev_mngr.cache_clean()
+        -- timeout & clean cache after set
+        dev_mngr.cache_expires_until(dev_mngr.conf.valid_after_set)
     end
     return result
 end
@@ -399,25 +455,34 @@ Tasks:
 function dev_mngr.SAFE_GET(with_unit)
     DBG("> SAFE_GET()")
     local result = {}
+    local func = dev_mngr.filter_item
 
     DBG("+ get raw result (+cache)")
     local gws_raw = dev_mngr.kpi_cached_raw() or {}
+    local abb_safe_rt = gws_raw.abb_safe_rt or {}
+    local radio_hal = gws_raw.radio_hal or {}
 
     -- filter each item before return
-    DBG("+ start filter result")
-    local func = dev_mngr.filter_item
+    DBG("+ start filter HAL.ABB result < noise=" .. abb_safe_rt.noise)
+    result.abb_safe = {}
+    for i,v in pairs(abb_safe_rt) do
+        result.abb_safe[i] = func(i, v)
+    end
+
+    DBG("+ start filter HAL.ARNRadio result")
     if (with_unit) then func = dev_mngr.filter_item_append_unit end
     
     -- filter region first, to ENSURE filter_channel get right region cache value
-    if (gws_raw.region) then func('region', gws_raw.region) end
+    if (radio_hal.region) then func('region', radio_hal.region) end
 
     --table.sort(gws_raw, function(a, b) return (tonumber(a) > tonumber(b)) end)
-    for i,v in pairs(gws_raw) do
-        result[i] = func(i, v)
+    result.radio_safe = {}
+    for i,v in pairs(radio_hal) do
+        result.radio_safe[i] = func(i, v)
     end
-    DBG("+ result is safe to use")
+    DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
 
-    DBG("+ return result")
+    DBG("+ return result < freq=" .. result.radio_safe.freq)
     return result
 end
 

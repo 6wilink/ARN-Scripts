@@ -1,6 +1,6 @@
 -- cmd/conf/file/filter
 -- by Qige <qigezhao@gmail.com>
--- 2017.06.30
+-- 2017.06.30/2017.08.11
 
 local uci = require 'uci'
 
@@ -42,11 +42,11 @@ ccff.file = {}
 function ccff.file.read(path)
 	local content = ''
 	if (path) then
-    local fd = io.open(path, "r+")
-    if (fd) then
-        content = fd:read("*all")
-        fd:close()
-    end
+        local fd = io.open(path, "r+")
+        if (fd) then
+            content = fd:read("*all")
+            fd:close()
+        end
 	end
 	return content
 end
@@ -72,7 +72,7 @@ end
 
 function ccff.trimr(str, cnt)
     if (str) then
-        return string.sub(str, 1, -1 - cnt)
+        return string.sub(str, 1, -1 - (cnt or 0))
     end
 end
 
@@ -80,12 +80,12 @@ end
 -- @return table/nil
 -- @from http://zhaiku.blog.51cto.com/2489043/1163077
 function ccff.split(str, delim)
-  local rt= {}
-  if (delim == nil) then delim = ',' end
-  if (str ~= nil) then
-    string.gsub(str, '[^'..delim..']+', function(w) table.insert(rt, w) end)
-  end
-  return rt
+    local rt= {}
+    if (delim == nil) then delim = ',' end
+    if (str ~= nil) then
+        string.gsub(str, '[^'..delim..']+', function(w) table.insert(rt, w) end)
+    end
+    return rt
 end
 
 ccff.val = {}

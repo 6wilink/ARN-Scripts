@@ -1,44 +1,117 @@
 #!/bin/sh
 
 ARN_MNGR=/usr/sbin/arn-mngr
+#ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
 
 help() {
   echo "usage: "
   echo "  arn [-a] [-c] [-r] [-p] [-b] [-f]"
   echo "  arn [-C n] [-R 0|1] [-B 6|8|16|24] [-P n] [-F n]"
-  echo "  arn -j -a"
+  echo "  arn [-M car|ear|mesh]"
 }
 
+arn_wds_mesh() {
+    echo "set mode to mesh"
+    uci set wireless.@wifi-iface[0].mode='mesh'
+    uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
+    uci set wireless.@wifi-iface[0].wds=1
+    uci del wireless.@wifi-iface[0].ssid 2>/dev/null
+    uci commit wireless
+    wifi
+}
+
+arn_wds_car() {
+    echo "set mode to car"
+    uci set wireless.@wifi-iface[0].mode='ap'
+    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
+    uci set wireless.@wifi-iface[0].wds=1
+    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
+    uci commit wireless
+    wifi
+}
+
+arn_wds_ear() {
+    echo "set mode to ear"
+    uci set wireless.@wifi-iface[0].mode='sta'
+    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
+    uci set wireless.@wifi-iface[0].wds=1
+    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
+    uci commit wireless
+    wifi
+}
+
+arn_mode() {
+    local MODE=$1
+    if [ "$MODE" == "mesh" ]; then
+        arn_wds_mesh;
+    elif [ "$MODE" == "car" ]; then
+        arn_wds_car;
+    else
+        arn_wds_ear;
+    fi
+}
+
+
 # FIXME: add all common commands
-# TODO: exit when got a valid option
-while getopts "jacC:rR:bB:pP:fF:h" OPT; do
-  case "$OPT" in
-    j)
-      $ARN_MNGR json;;
-    f)
-      $ARN_MNGR freq;;
-    F)
-      $ARN_MNGR freq $OPTARG;;
-    c)
-      $ARN_MNGR channel;;
-    C)
-      $ARN_MNGR channel $OPTARG;;
-    r)
-      $ARN_MNGR region;;
-    R)
-      $ARN_MNGR region $OPTARG;;
-    p)
-      $ARN_MNGR txpower;;
-    P)
-      $ARN_MNGR txpower $OPTARG;;
-    b)
-      $ARN_MNGR chanbw;;
-    B)
-      $ARN_MNGR chanbw $OPTARG;;
-    a)
-      $ARN_MNGR all;;
-    h|?)
-      help;;
-  esac
+# break when got a valid option
+while getopts "jacC:rR:bB:pP:fF:hM:" OPT; do
+    case "$OPT" in
+        j)
+            $ARN_MNGR json
+            break
+            ;;
+        f)
+            $ARN_MNGR freq
+            break
+            ;;
+        F)
+            $ARN_MNGR freq $OPTARG
+            break
+            ;;
+        c)
+            $ARN_MNGR channel
+            break
+            ;;
+        C)
+            $ARN_MNGR channel $OPTARG
+            break
+            ;;
+        r)
+            $ARN_MNGR region
+            break
+            ;;
+        R)
+            $ARN_MNGR region $OPTARG
+            break
+            ;;
+        p)
+            $ARN_MNGR txpower
+            break
+            ;;
+        P)
+            $ARN_MNGR txpower $OPTARG
+            break
+            ;;
+        b)
+            $ARN_MNGR chanbw
+            break
+            ;;
+        B)
+            $ARN_MNGR chanbw $OPTARG
+            break
+            ;;
+        M)
+            arn_mode $OPTARG
+            break
+            ;;
+        a)
+            date; echo '----------------------------'
+            $ARN_MNGR all
+            break
+            ;;
+        h|?)
+            help; break
+            ;;
+    esac
 done
 shift $((OPTIND - 1))

@@ -85,7 +85,6 @@ function gws_raw.init()
         gws_raw.cache.hw_platform = gws_raw.hw_platform()
     end
 end
-
 -- TODO:
 -- Verify platform
 -- Ensure command binary file exists
@@ -93,6 +92,7 @@ end
 function gws_raw.HAL_SET_RT(key, value)
     DBG(sfmt("hal gws-raw> HAL_SET_RT k=[%s],v=[%s] (@%d)", key or '-', value or '-', os.time()))
     
+    -- ARNRadio related settings
     gws_raw.init()
     local hw_platform = gws_raw.cache.hw_platform
     if (hw_platform == 'GWS5Kv1') then
@@ -106,14 +106,28 @@ function gws_raw.HAL_SET_RT(key, value)
     end
 end
 
+function gws_raw.HAL_GET_ABB_SAFE_RT()
+    local result = {}
+    DBG(sfmt("hal gws-raw> HAL_GET_RT (@%d)", os.time()))
+    
+    local result = gws_raw.abb.update_safe_rt()
+    
+    -- add hardware platform to result
+    if ((not result) or (type(result) ~= 'table')) then
+        result = {}
+    end
+    result.hw_ver = hw_platform
+    return result
+end
+
 --[[
 Tasks: 
     1. Dismiss hardware platform related query methods;
     2. Do query, & return realtime value;
     3. Default platform is GWS3K (defined since 2011).
 ]]--
-function gws_raw.HAL_GET_RT()
-    local result
+function gws_raw.HAL_GET_RADIO_RT()
+    local result = {}
     DBG(sfmt("hal gws-raw> HAL_GET_RT (@%d)", os.time()))
     
     gws_raw.init()
