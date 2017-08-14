@@ -48,12 +48,14 @@ Frequency formular
     Region 1: f = 474 + (ch - 21) * 8
 ]]--
 function uhf.channel_to_freq(region, channel)
-    DBG(sfmt("--------> (FIXME) channel_to_freq(UHF r=%s, c=%s)", region, channel))
+    DBG(sfmt("--------> (FIXME) channel_to_freq(UHF r=%s, c=%s)", region or '-', channel or '-'))
     local freq = 470
-    if (region > 0) then
-        freq = freq + (0.5 + channel - 21) * 8
-    else
-        freq = freq + (0.5 + channel - 14) * 6
+    if (region and channel) then
+        if (region > 0) then
+            freq = freq + (0.5 + channel - 21) * 8
+        else
+            freq = freq + (0.5 + channel - 14) * 6
+        end
     end
     return freq
 end
