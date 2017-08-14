@@ -58,15 +58,17 @@ local function format_abb(obj)
     local result = ''
     
     local s1, s2
-    s1 = sfmt('   SSID: %s\n', obj.ssid or '---')
+    s1 = sfmt('   SSID: %s (%s)\n', obj.ssid or '---', obj.mode)
     result = result .. s1
 
     s2 = sfmt('  BSSID: %-28s\n', obj.bssid or '---')
     result = result .. s2
 
-    s1 = sfmt('  Noise: %-4s dBm |  Signal: %-4s dBm |     SNR: %-8s | %s\n', 
-            obj.noise, valid_signal(obj.signal, obj.noise), calc_snr(obj.signal, obj.noise), obj.mode)
-    result = result .. s1 .. '\n'
+    s1 = sfmt('  Noise: %-4s dBm |  Signal: %-4s dBm |     SNR: %-8s\n', 
+            obj.noise, valid_signal(obj.signal, obj.noise), calc_snr(obj.signal, obj.noise))
+    result = result .. s1
+
+    result = result .. '\n'
     
     local peers = obj.peers
     if (peers and type(peers) == 'table' and #peers > 0) then
@@ -97,10 +99,11 @@ Tasks:
     2. decide what to display by user input;
 ]]--
 local function print_with_filter(key)
+    local result
+
     local gws_safe_raw = mngr.SAFE_GET('with_unit')
     local gws_safe_abb = gws_safe_raw.abb_safe
     local gws_safe_radio = gws_safe_raw.radio_safe
-    local result
 
     result = format_abb(gws_safe_abb) .. '\n'
     result = result .. format_radio(key, gws_safe_radio) .. '\n'
@@ -108,14 +111,15 @@ local function print_with_filter(key)
     print(result)
 end
 
+-- TODO: 'monitor' cannot be interrupted
 -- SAFE_SET() will call SAFE_SAVE() automatically
 if (arg_key ~= 'nil') then
     if (arg_val ~= 'nil') then
         DBG(sfmt("> set %s=%s", arg_key, arg_val))
         mngr.SAFE_SET(arg_key, arg_val)
     else
-        print(sfmt('%80s', version))
         DBG(sfmt("> %s", arg_key))
+        print(sfmt('%80s', version))
         print_with_filter(arg_key)
     end
 else

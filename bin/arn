@@ -51,10 +51,18 @@ arn_mode() {
     fi
 }
 
+monitor() {
+    while true; do
+        arn -a
+        sleep 1
+        clear
+    done
+}
+
 
 # FIXME: add all common commands
 # break when got a valid option
-while getopts "jacC:rR:bB:pP:fF:hM:" OPT; do
+while getopts "jacC:rR:bB:pP:fF:hM:m" OPT; do
     case "$OPT" in
         j)
             $ARN_MNGR json
@@ -104,12 +112,16 @@ while getopts "jacC:rR:bB:pP:fF:hM:" OPT; do
             arn_mode $OPTARG
             break
             ;;
+        m)
+            monitor
+            ;;
         a)
             date; echo '----------------------------'
-            $ARN_MNGR all
+            $ARN_MNGR all 2>/dev/null
             break
             ;;
         h|?)
+            date; echo '----------------------------'
             help; break
             ;;
     esac
