@@ -1,0 +1,43 @@
+#!/bin/sh /etc/rc.common
+
+START=66
+STOP=66
+
+APP=arn
+CONF=/etc/config/arn
+CMD=/usr/sbin/arn
+
+uci_conf() {
+    local conf="$1"
+    if [ -f "$CMD" ]; then
+        config_get region "$conf" region
+        if [ -n "$region" ]; then
+            $CMD -R $region
+        fi
+        config_get channel "$conf" channel
+        if [ -n "$channel" ]; then
+            $CMD -C $channel
+        fi
+        config_get txpower "$conf" txpower
+        if [ -n "$txpower" ]; then
+            $CMD -P $txpower
+        fi
+        config_get chanbw "$conf" chanbw
+        if [ -n "$chanbw" ]; then
+            $CMD -B $chanbw
+        fi
+    fi
+}
+
+start() {
+    if [ -f "$CONF" ]; then
+        config_load $CONF
+        config_foreach uci_conf $APP
+    else
+        echo "* conf file missing, using default settings"
+    fi
+}
+
+stop() {
+    killall $app
+}
