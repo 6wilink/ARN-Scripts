@@ -53,9 +53,9 @@ function gws_radio.update_item(key)
     local result
     if (key == 'region') then
         result = exec(gws_radio.cmd.region)
-    elseif (key == 'channel') then
+    elseif (key == 'channel' or key == 'channo') then
         result = exec(gws_radio.cmd.channel)
-    elseif (key == 'txpower') then
+    elseif (key == 'txpower' or key == 'txpwr') then
         result = exec(gws_radio.cmd.txpower)
     elseif (key == 'chanbw') then
         result = exec(gws_radio.cmd.chanbw)
@@ -102,12 +102,12 @@ function gws_radio.update_rt()
 end
 
 function gws_radio.set_rt(key, value)
-    DBG(sfmt("GWS5Kv2> set_rt k=[%s] (@%d)", key or '-', os.time()))
+    DBG(sfmt("GWS5Kv2> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
-    elseif (key == 'channel') then
+    elseif (key == 'channel' or key == 'channo') then
         exec(sfmt(gws_radio.cmd.channel_set, value))
-    elseif (key == 'txpower') then
+    elseif (key == 'txpower' or key == 'txpwr') then
         exec(sfmt(gws_radio.cmd.txpower_set, value))
     elseif (key == 'chanbw') then
         exec(sfmt(gws_radio.cmd.chanbw_set, value))

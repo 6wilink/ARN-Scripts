@@ -1,13 +1,8 @@
---[[
-NOT VERIFIED SINCE 2017.08.10
+-- NOT VERIFIED SINCE 2017.08.10
 -- by Qige <qigezhao@gmail.com>
 -- 2017.06.19 import abb from Proto-EC54S
 -- 2017.08.10 gws_abb|indent
 -- 2017.08.11 update_safe_rt|mesh_id
--- 2017.08.14 bitrate
-TODO:
-    1. set().
-]]--
 
 -- DEBUG USE ONLY
 --local DBG = print
