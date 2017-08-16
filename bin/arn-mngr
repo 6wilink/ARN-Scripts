@@ -9,7 +9,7 @@
 --local DBG = print
 local function DBG(msg) end
 
-local version = 'ARN-Cli (+HAL +Cache +5K) v2017.08.11 '
+local version = 'ARN-Cli (+HAL +Cache +5K/+4K) v2017.08.16 '
 local mngr = require 'arn.mngr'
 local sfmt = string.format
 

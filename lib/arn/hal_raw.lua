@@ -1,5 +1,6 @@
 -- by Qige <qigezhao@gmail.com>
 -- 2017.08.01 hw_platform|init|HAL_SET_RT|HAL_GET_RT
+-- 2017.08.16 GWS4K|GWS5K
 
 local ccff = require 'qutil.ccff'
 local exec = ccff.execute
@@ -132,6 +133,7 @@ function gws_raw.HAL_GET_RADIO_RT()
     
     gws_raw.init()
     local hw_platform = gws_raw.cache.hw_platform
+    DBG(sfmt("hal gws-raw----> %s update_rt()", hw_platform))
     if (hw_platform == 'GWS5Kv1') then
         result = gws_raw.Util_GWS5Kv1.update_rt(key)
     elseif (hw_platform == 'GWS5Kv2') then
