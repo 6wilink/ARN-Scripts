@@ -46,10 +46,6 @@ function Cache.LOAD(cache_file)
     if (cache_content) then
         cache_raw = Serializer.unserialize(cache_content)
     end
-    if (not is_array(cache_raw)) then
-        cache_raw = {}
-        cache_raw.ts = os.time()
-    end
     return cache_raw
 end
 
