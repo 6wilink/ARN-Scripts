@@ -226,7 +226,6 @@ function gws_abb.peers(bssid, noise)
             if (signal ~= 0 and signal > noise and inactive < gws_abb.bar.peer_inactive) then
                 peer.bssid = bssid
                 peer.wmac = s(ai) or '----'
-                peer.ip = '----'
 
                 peer.signal = signal or noise
                 peer.noise = noise

@@ -79,18 +79,6 @@ local function calc_snr(signal, noise)
     return '---'
 end
 
-local function mark_peer(mac, ip)
-    if (not ip or ip == '----') then
-        local rarp = sfmt("rarp-client %s 211 | awk '{print $2}' | tr -d '\n'", mac)
-        local ip_raw = exec(rarp)
-        if (ip_raw and ip_raw ~= '') then
-            return '> ' .. ip_raw
-        end
-        return mac
-    end
-    return ip
-end
-
 local function format_abb(obj)
     local result = ''
     
@@ -111,12 +99,12 @@ local function format_abb(obj)
     local peers = obj.peers
     if (peers and type(peers) == 'table' and #peers > 0) then
         for idx,peer in pairs(peers) do
-            s2 = sfmt(' Link#%s: %-17s | RSSI: %s/%s/%s | Rx %s/%s | Tx %s/%s | %s ms\n', 
-                    idx, mark_peer(peer.wmac, peer.ip), 
+            s2 = sfmt('link#%02d: %-23s | %s/%s/%s | Rx %s/%s | Tx %s/%s | %.2fs\n', 
+                    idx, mngr.FETCH_IP(peer.wmac), 
                     valid_signal(peer.signal, peer.noise), peer.noise, 
                     calc_snr(peer.signal, peer.noise), peer.rx_mcs, peer.rx_br,
                     peer.tx_mcs, peer.tx_br, 
-                    peer.inactive)
+                    peer.inactive/1000)
             result = result .. s2
         end
     else

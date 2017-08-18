@@ -37,6 +37,9 @@ local trimr         = Ccff.trimr
 local is_array      = Ccff.val.is_array
 local in_list       = Ccff.val.in_list
 local sfmt          = string.format
+local sgsub         = string.gsub
+local slen          = string.len
+local ssub          = string.sub
 
 -- load ARN HAL Module
 local DEV_HAL = require 'arn.hal_raw'
@@ -53,12 +56,14 @@ dev_mngr.conf.config            = 'arn'
 
 dev_mngr.conf.fcache_set_expiry = 3
 
+dev_mngr.conf.rarp_cmd_fmt      = "rarp-client %s 211 | awk '{print $2}' | tr -d '\n'"
 dev_mngr.conf.nw_ifname         = 'br-lan'
 dev_mngr.conf.nw_cmd_fmt        = "cat /proc/net/dev | grep %s | awk '{print $2,$10}' | tr -d '\n'"
 dev_mngr.conf.nw_cache_intl     = 5
 
 dev_mngr.conf.fcache_radio      = '/tmp/.arn-cache.radio'
 dev_mngr.conf.fcache_nw         = '/tmp/.arn-cache.nw'
+dev_mngr.conf.fcache_rarp       = '/tmp/.arn-cache.dev-'
 
 dev_mngr.default = {}
 dev_mngr.default.chanbw         = 8
@@ -75,6 +80,8 @@ dev_mngr.default.rxgain_min     = -30
 dev_mngr.default.rxgain_max     = 30
 
 dev_mngr.default.cache_timeout  = 10
+
+dev_mngr.default.rarp_timeout   = 300
 
 --[[
 Tasks:
@@ -557,6 +564,67 @@ function dev_mngr.SAFE_GET(with_unit)
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
     DBG("+ return result < freq=" .. result.radio_safe.freq)
     return result
+end
+
+--[[
+Tasks:
+    1. Read IP from cache;
+    2. If cache missed, use RARP, & save to cache.
+]]--
+function dev_mngr.FETCH_IP(mac)
+    DBG(sfmt('mngr> FETCH_IP(%s)', mac))
+    if (mac and slen(mac) >= 17) then
+        local ip_raw = dev_mngr.load_ip_from_cache(mac)
+        if (ip_raw and ip_raw ~= '') then
+            DBG(sfmt('mngr----> cache convert: %s=%s)', mac, ip_raw))
+            return ip_raw .. ' + ' .. ssub(mac, 10, -1)
+        end
+        ip_raw = dev_mngr.rarp_request(mac)
+        if (ip_raw and ip_raw ~= '') then
+            DBG(sfmt('mngr----> rarp convert: %s=%s', mac, ip_raw or '-'))
+            dev_mngr.save_ip_to_cache(mac, ip_raw)
+            return ip_raw .. ' < ' .. ssub(mac, 10, -1)
+        end
+        return mac
+    end
+    return '(unknown)' .. ' + ' .. ssub(mac, 1, 8)
+end
+
+-- Convert MAC to IP via cmd
+-- +rarp-client +rarp-server
+function dev_mngr.rarp_request(mac)
+    local rarp_cmd_fmt = dev_mngr.conf.rarp_cmd_fmt
+    if (mac) then
+        local rarp = sfmt(rarp_cmd_fmt, mac)
+        return exec(rarp)
+    end
+    return nil
+end
+
+function dev_mngr.cache_key(mac)
+    return sgsub(mac or '', ':', '')
+end
+
+function dev_mngr.load_ip_from_cache(mac)
+    local key = dev_mngr.cache_key(mac)
+    local cache_file = dev_mngr.conf.fcache_rarp .. key
+    local cache = Cache.LOAD_VALID(cache_file, dev_mngr.default.rarp_timeout)
+    if (cache and type(cache) == 'table') then
+        local ip = cache[key] or ''
+        return ip
+    end
+    return nil
+end
+
+function dev_mngr.save_ip_to_cache(mac, ip)
+    local key = dev_mngr.cache_key(mac)
+    local cache_file = dev_mngr.conf.fcache_rarp .. key
+    local cache = Cache.LOAD_VALID(cache_file, dev_mngr.default.rarp_timeout)
+    if (not cache or type(cache) ~= 'table') then
+        cache = {}
+    end
+    cache[key] = ip
+    Cache.SAVE(cache_file, cache)
 end
 
 return dev_mngr
