@@ -10,44 +10,14 @@ help() {
   echo "  arn [-M car|ear|mesh]"
 }
 
-arn_wds_mesh() {
-    echo "set mode to mesh"
-    uci set wireless.@wifi-iface[0].mode='mesh'
-    uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
-    uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].ssid 2>/dev/null
-    uci commit wireless
-    wifi
-}
-
-arn_wds_car() {
-    echo "set mode to car"
-    uci set wireless.@wifi-iface[0].mode='ap'
-    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
-    uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
-    uci commit wireless
-    wifi
-}
-
-arn_wds_ear() {
-    echo "set mode to ear"
-    uci set wireless.@wifi-iface[0].mode='sta'
-    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
-    uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
-    uci commit wireless
-    wifi
-}
-
 arn_mode() {
     local MODE=$1
     if [ "$MODE" == "mesh" ]; then
-        arn_wds_mesh;
+        /usr/sbin/arn-wds-mesh
     elif [ "$MODE" == "car" ]; then
-        arn_wds_car;
+        /usr/sbin/arn-wds-car
     else
-        arn_wds_ear;
+        /usr/sbin/arn-wds-ear
     fi
 }
 
@@ -62,7 +32,9 @@ monitor() {
 
 # FIXME: add all common commands
 # break when got a valid option
-while getopts "jacC:rR:bB:pP:fF:hM:m" OPT; do
+# JSON/all/monitor/Mode/help
+# TODO: channel/region/chanbw/txpower/freq
+while getopts "jamM:cC:rR:bB:pP:fF:h" OPT; do
     case "$OPT" in
         j)
             $ARN_MNGR json

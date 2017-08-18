@@ -40,7 +40,7 @@ end
 
 ccff.file = {}
 function ccff.file.read(path)
-	local content = ''
+	local content
 	if (path) then
         local fd = io.open(path, "r+")
         if (fd) then
@@ -68,12 +68,14 @@ function ccff.triml(str, cnt)
     if (str) then
         return string.sub(str, 1 + cnt, -1)
     end
+    return nil
 end
 
 function ccff.trimr(str, cnt)
     if (str) then
         return string.sub(str, 1, -1 - (cnt or 0))
     end
+    return nil
 end
 
 -- string split()
@@ -89,6 +91,21 @@ function ccff.split(str, delim)
 end
 
 ccff.val = {}
+function ccff.val.is_array(s)
+    if (s and type(s) == 'table') then
+        return true
+    end
+    return false
+end
+
+function ccff.has(str, key)
+    local p1, p2 = string.find(str, key)
+    if (p1 ~= nil) then
+        return true
+    end
+    return false
+end
+
 function ccff.val.s(str)
     if (str) then
         return tostring(str)
@@ -114,6 +131,18 @@ function ccff.val.limit(v, vmin, vmax)
         val = val_max
     end
     return val
+end
+
+function ccff.val.in_list(list, delim, s)
+    local result = false
+    local ranges = ccff.split(list, delim)
+    for idx, val in pairs(ranges) do
+        if (val == s) then 
+            result = true
+            break
+        end
+    end
+    return result
 end
 
 return ccff

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+arn_wds_ear() {
+    echo "set mode to ear"
+    uci set wireless.@wifi-iface[0].mode='sta'
+    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
+    uci set wireless.@wifi-iface[0].wds=1
+    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
+    uci commit wireless
+    wifi
+}
+
+arn_wds_ear

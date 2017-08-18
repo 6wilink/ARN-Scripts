@@ -10,6 +10,7 @@ local Ccff          = require 'qutil.ccff'
 local file_read     = Ccff.file.read
 local file_write    = Ccff.file.write
 local vint          = Ccff.val.n
+local is_array      = Ccff.val.is_array
 local sfmt          = string.format
 
 
@@ -23,7 +24,7 @@ function Cache.LOAD_VALID(cache_file, cache_timeout)
     local now_ts = os.time() -- in seconds
     local cache_ts
     local cache = Cache.LOAD(cache_file)
-    if (cache) then
+    if (is_array(cache)) then
         cache_ts = vint(cache.ts)
     else
         cache_ts = 0
@@ -45,7 +46,7 @@ function Cache.LOAD(cache_file)
     if (cache_content) then
         cache_raw = Serializer.unserialize(cache_content)
     end
-    if (cache_raw and not next(cache_raw)) then
+    if (not is_array(cache_raw)) then
         cache_raw = {}
         cache_raw.ts = os.time()
     end
@@ -68,15 +69,13 @@ function Cache.SAVE(cache_file, cache, ts)
 end
 
 -- set cache TIMEOUT ts
-function Cache.EXPIRES_UNTIL(cache_file, sec)
-    DBG(sfmt("Cache> EXPIRES_UNTIL(%s, %s)", cache_file or '-', sec or '-'))
-    local now_ts = os.time()
-    local until_ts = now_ts - sec
-    DBG(sfmt("----+ cache will be expired in %ds (target=%d,now=%d)", sec, until_ts, now_ts))
+function Cache.EXPIRES_UNTIL(cache_file, until_ts, interval)
+    DBG(sfmt("Cache> EXPIRES_UNTIL(f=%s, to=%s, intl=%s)", cache_file or '-', until_ts or '-', interval or '-'))
+    DBG(sfmt("----+ cache will be expired in %ds", until_ts))
     
     local cache = Cache.LOAD(cache_file)
     if (cache and next(cache)) then
-        Cache.SAVE(cache_file, cache, until_ts)
+        Cache.SAVE(cache_file, cache, os.time() - interval + until_ts)
     end
 end
 

@@ -1,37 +1,36 @@
 -- by Qige <qigezhao@gmail.com>
 -- 2017.08.01 hw_platform|init|HAL_SET_RT|HAL_GET_RT
--- 2017.08.16 GWS4K|GWS5K
+-- 2017.08.16 GWS4K|GWS5K|cmd_interval
 
 local ccff = require 'qutil.ccff'
-local exec = ccff.execute
-local sfmt = string.format
-local sfind = string.find
+local exec          = ccff.execute
+local file_read     = ccff.file.read
+local file_write    = ccff.file.write
+local vint          = ccff.val.n
+local shas          = ccff.has
+local sfmt          = string.format
+local sfind         = string.find
 
 --local DBG = print
 local function DBG(msg) end
 
-local function string_has(str, key)
-    local p1, p2 = sfind(str, key)
-    if (p1 ~= nil) then
-        return true
-    end
-    return false
-end
 
 local gws_raw = {}
 
 gws_raw.abb = require 'arn.gws_abb'
-gws_raw.Util_GWS3K = require 'arn.gws_3k'
-gws_raw.Util_GWS4K = require 'arn.gws_4k'
-gws_raw.Util_GWS5Kv1 = require 'arn.gws_5kv1'
-gws_raw.Util_GWS5Kv2 = require 'arn.gws_5kv2'
+gws_raw.Util_GWS3K      = require 'arn.gws_3k'
+gws_raw.Util_GWS4K      = require 'arn.gws_4k'
+gws_raw.Util_GWS5Kv1    = require 'arn.gws_5kv1'
+gws_raw.Util_GWS5Kv2    = require 'arn.gws_5kv2'
 
 gws_raw.conf = {}
-gws_raw.conf.cmd_cpu = 'cat /proc/cpuinfo | grep system'
-gws_raw.conf.cmd_device = 'ls /dev/gws* 2>/dev/null'
+gws_raw.conf.cmd_cpu        = 'cat /proc/cpuinfo | grep system'
+gws_raw.conf.cmd_device     = 'ls /dev/gws* 2>/dev/null'
+gws_raw.conf.cmd_interval   = 5
+gws_raw.conf.cmd_ts_file    = '/tmp/.hal-cmd-ts.tmp'
 
 gws_raw.cache = {}
-gws_raw.cache.hw_platform = nil
+gws_raw.cache.hw_platform   = nil
 
 --[[
 Return:
@@ -51,22 +50,22 @@ function gws_raw.hw_platform()
     local dev_raw = exec(gws_raw.conf.cmd_device)
 
     -- GWS5Kv2-9531
-    if (string_has(cpu_raw, 'QCA9533')) then
+    if (shas(cpu_raw, 'QCA9533')) then
         cpu = 'QCA9533'
         hw_arch = 'GWS5Kv2'    
-    elseif (string_has(cpu_raw, 'AR9344')) then
+    elseif (shas(cpu_raw, 'AR9344')) then
         cpu = 'AR9344'
         -- GWS5Kv1-9344
-        if (string_has(dev_raw, 'gws5001Dev')) then
+        if (shas(dev_raw, 'gws5001Dev')) then
             dev = 'gws5001Dev'
             hw_arch = 'GWS5Kv1'
         end
     -- GWS4K-9330
-    elseif (string_has(cpu_raw, 'AR9330')) then
+    elseif (shas(cpu_raw, 'AR9330')) then
         cpu = 'AR9330'
         hw_arch = 'GWS4K'
     -- GWS3K-7130
-    elseif (string_has(cpu_raw, 'AR7130')) then
+    elseif (shas(cpu_raw, 'AR7130')) then
         cpu = 'AR7130'
         hw_arch = 'GWS3K'
     else
@@ -79,6 +78,16 @@ function gws_raw.hw_platform()
     return hw_arch
 end
 
+function gws_raw.get_last_cmd_ts()
+    local f = gws_raw.conf.cmd_ts_file
+    return file_read(f)
+end
+
+function gws_raw.set_last_cmd_ts(ts)
+    local f = gws_raw.conf.cmd_ts_file
+    file_write(f, ts)
+end
+
 function gws_raw.init()
     DBG(sfmt("hal gws-raw----> init()"))
     if (not gws_raw.cache.hw_platform) then
@@ -86,30 +95,70 @@ function gws_raw.init()
         gws_raw.cache.hw_platform = gws_raw.hw_platform()
     end
 end
--- TODO:
--- Verify platform
--- Ensure command binary file exists
--- Execute command
+
+--[[
+Tasks:
+    1. SET needs interval;
+    2. Return error when too frequently.
+]]--
 function gws_raw.HAL_SET_RT(key, value)
-    DBG(sfmt("hal gws-raw> HAL_SET_RT k=[%s],v=[%s] (@%d)", key or '-', value or '-', os.time()))
-    
-    -- ARNRadio related settings
+    local result
+    DBG(sfmt("hal radio> HAL_SET_RT k=[%s],v=[%s] (@%d)", key or '-', value or '-', os.time()))
+
+    -- 5K/4K/3K all needs SET interval
     gws_raw.init()
+    
+    -- check Last Command TS first
+    local cmd_interval = gws_raw.conf.cmd_interval
+    local now_ts = os.time()
+    local last_cmd_ts = vint(gws_raw.get_last_cmd_ts()) or 0
+    local cmd_gap = now_ts - last_cmd_ts    
+    DBG(sfmt('hal> now=%s, last=%s, interval=%s', now_ts, last_cmd_ts, cmd_interval))
+    -- ARNRadio related settings
     local hw_platform = gws_raw.cache.hw_platform
     if (hw_platform == 'GWS5Kv1') then
-        result = gws_raw.Util_GWS5Kv1.set_rt(key, value)
+        if (cmd_gap >= cmd_interval) then    
+            DBG(sfmt('hal> last command finished'))
+            gws_raw.set_last_cmd_ts(os.time())
+            result = gws_raw.Util_GWS5Kv1.SET_RT(key, value)
+        else
+            result = 'hal> wait for last command finish'
+            print(result)
+        end
     elseif (hw_platform == 'GWS5Kv2') then
-        result = gws_raw.Util_GWS5Kv2.set_rt(key, value)
+        if (cmd_gap >= cmd_interval) then    
+            DBG(sfmt('hal> last command finished'))
+            gws_raw.set_last_cmd_ts(os.time())
+            result = gws_raw.Util_GWS5Kv2.SET_RT(key, value)
+        else
+            result = 'hal> wait for last command finish'
+            print(result)
+        end
     elseif (hw_platform == 'GWS4K') then
-        result = gws_raw.Util_GWS4K.set_rt(key, value)
+        if (cmd_gap >= cmd_interval) then    
+            DBG(sfmt('hal> last command finished'))
+            gws_raw.set_last_cmd_ts(os.time())
+            result = gws_raw.Util_GWS4K.SET_RT(key, value)
+        else
+            result = 'hal> wait for last command finish'
+            print(result)
+        end
     else
-        result = gws_raw.Util_GWS3K.set_rt(key, value)
+        if (cmd_gap >= cmd_interval) then    
+            DBG(sfmt('hal> last command finished'))
+            gws_raw.set_last_cmd_ts(os.time())
+            result = gws_raw.Util_GWS3K.SET_RT(key, value)
+        else
+            result = 'hal> wait for last command finish'
+            print(result)
+        end
     end
+    return result
 end
 
 function gws_raw.HAL_GET_ABB_SAFE_RT()
     local result = {}
-    DBG(sfmt("hal gws-raw> HAL_GET_RT (@%d)", os.time()))
+    DBG(sfmt("hal abb> HAL_GET_RT (@%d)", os.time()))
     
     local result = gws_raw.abb.update_safe_rt()
     
@@ -129,19 +178,19 @@ Tasks:
 ]]--
 function gws_raw.HAL_GET_RADIO_RT()
     local result = {}
-    DBG(sfmt("hal gws-raw> HAL_GET_RT (@%d)", os.time()))
+    DBG(sfmt("hal radio> HAL_GET_RT (@%d)", os.time()))
     
     gws_raw.init()
     local hw_platform = gws_raw.cache.hw_platform
     DBG(sfmt("hal gws-raw----> %s update_rt()", hw_platform))
     if (hw_platform == 'GWS5Kv1') then
-        result = gws_raw.Util_GWS5Kv1.update_rt(key)
+        result = gws_raw.Util_GWS5Kv1.UPDATE_RT(key)
     elseif (hw_platform == 'GWS5Kv2') then
-        result = gws_raw.Util_GWS5Kv2.update_rt(key)
+        result = gws_raw.Util_GWS5Kv2.UPDATE_RT(key)
     elseif (hw_platform == 'GWS4K') then
-        result = gws_raw.Util_GWS4K.update_rt(key)
+        result = gws_raw.Util_GWS4K.UPDATE_RT(key)
     else
-        result = gws_raw.Util_GWS3K.update_rt(key)
+        result = gws_raw.Util_GWS3K.UPDATE_RT(key)
     end
     
     -- add hardware platform to result

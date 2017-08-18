@@ -5,6 +5,10 @@ Note:
 
     by Qige <qigezhao@gmail.com>
     2017.08.10 update_rt|set_rt
+    2017.08.16 set_rt+return
+BugList:
+    20170816    #1  'rfinfo' maybe not output right region after 'setregion'
+                    must run 'rfinfo; rfinfo' to get the right value
 ]]--
 
 --local DBG = print
@@ -26,7 +30,8 @@ gws_radio.conf.val_length_max = 8
 
 gws_radio.cmd = {}
 gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS5Kv2.tmp'
-gws_radio.cmd.rfinfo        = '`which gws5001app` rfinfo 2>/dev/null > /tmp/.GWS5Kv2.tmp'
+gws_radio.cmd.rfinfo        = 'echo > /tmp/.GWS5Kv2.tmp; `which gws5001app` rfinfo >/dev/null 2>&1; `which gws5001app` rfinfo 2>/dev/null > /tmp/.GWS5Kv2.tmp'
+gws_radio.cmd.rfinfo_all    = 'cat /tmp/.GWS5Kv2.tmp 2>/dev/null'
 gws_radio.cmd.region        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Region | grep [01]* -o'
 gws_radio.cmd.channel       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan: | grep [0-9]* -o'
 gws_radio.cmd.txpower       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Tx | grep Power | grep [0-9\.]* -o'
@@ -39,9 +44,14 @@ gws_radio.cmd.txpower_set   = '`which gws5001app` settxpwr %s 2> /dev/null '
 gws_radio.cmd.chanbw_set    = '`which gws5001app` setchanbw %s 2> /dev/null '
 gws_radio.cmd.rxgain_set    = '`which gws5001app` setrxgain %s 2> /dev/null '
 
-function gws_radio.update_init()
+function gws_radio.rfinfo_init()
     DBG(sfmt("GWS5Kv2----> update_init()"))
     exec(gws_radio.cmd.rfinfo)
+    --print(exec(gws_radio.cmd.rfinfo_all))
+end
+
+function gws_radio.rfinfo_clean()
+    exec(gws_radio.cmd.rfinfo_clean)
 end
 
 --[[
@@ -75,46 +85,54 @@ Tasks:
     1. Do cli call;
     2. Fetch each parameters from tmp file.
 ]]--
-function gws_radio.update_rt()
+function gws_radio.UPDATE_RT()
     DBG(sfmt("GWS5Kv2> update_rt (@%d)", os.time()))
     local result = {}
     
-    gws_radio.update_init()
+    gws_radio.rfinfo_init()
     
-    DBG(sfmt("GWS5Kv2----> update_item() region"))
-    result.region = gws_radio.update_item('region')
+    result.region = gws_radio.update_item('region') or '0'
+    DBG(sfmt("GWS5Kv2----> update_item() region=%s", result.region))
     
-    DBG(sfmt("GWS5Kv2----> update_item() channel"))
-    result.channo = gws_radio.update_item('channel')
+    result.channo = gws_radio.update_item('channel') or '0'
     result.freq = uhf.channel_to_freq(result.region, result.channo)
+    DBG(sfmt("GWS5Kv2----> update_item() channel=%s,freq=%s", result.channo, result.freq))
     
-    DBG(sfmt("GWS5Kv2----> update_item() txpower"))
-    result.txpwr = gws_radio.update_item('txpower')
+    result.txpwr = gws_radio.update_item('txpower') or '0'
+    DBG(sfmt("GWS5Kv2----> update_item() txpower=%s", result.txpwr))
     
-    DBG(sfmt("GWS5Kv2----> update_item() chanbw"))
-    result.chanbw = gws_radio.update_item('chanbw')
+    result.chanbw = gws_radio.update_item('chanbw') or '0'
+    DBG(sfmt("GWS5Kv2----> update_item() chanbw=%s", result.chanbw))
     
-    DBG(sfmt("GWS5Kv2----> update_item() rxgain"))
-    result.rxgain = gws_radio.update_item('rxgain')
+    result.rxgain = gws_radio.update_item('rxgain') or '0'
+    DBG(sfmt("GWS5Kv2----> update_item() rxgain=%s", result.rxgain))
     
     --result.ts = os.time()
+    --gws_radio.rfinfo_clean()
     return result
 end
 
-function gws_radio.set_rt(key, value)
+function gws_radio.SET_RT(key, value)
+    local result = true
     DBG(sfmt("GWS5Kv2> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
+        result = false
     elseif (key == 'channel' or key == 'channo') then
         exec(sfmt(gws_radio.cmd.channel_set, value))
+        result = false
     elseif (key == 'txpower' or key == 'txpwr') then
         exec(sfmt(gws_radio.cmd.txpower_set, value))
+        result = false
     elseif (key == 'chanbw') then
         exec(sfmt(gws_radio.cmd.chanbw_set, value))
+        result = false
     elseif (key == 'rxgain') then
         exec(sfmt(gws_radio.cmd.rxgain_set, value))
+        result = false
     end
-    exec(gws_radio.cmd.rfinfo_clean)
+    gws_radio.rfinfo_clean()
+    return result
 end
 
 return gws_radio

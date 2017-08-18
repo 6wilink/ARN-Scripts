@@ -72,7 +72,7 @@ Tasks:
     1. Do cli call;
     2. Fetch each parameters from tmp file.
 ]]--
-function gws_radio.update_rt()
+function gws_radio.UPDATE_RT()
     DBG(sfmt("GWS4K> update_rt (@%d)", os.time()))
     local result = {}
     
@@ -95,7 +95,7 @@ function gws_radio.update_rt()
     return result
 end
 
-function gws_radio.set_rt(key, value)
+function gws_radio.SET_RT(key, value)
     DBG(sfmt("GWS4K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
