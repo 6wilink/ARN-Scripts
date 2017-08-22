@@ -1,23 +1,28 @@
 #!/bin/sh
 
+VERSION="ARN-Scripts v1.0-170821Q"
 ARN_MNGR=/usr/sbin/arn-mngr
 #ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
 
+version() {
+    echo "$VERSION"
+}
+
 help() {
   echo "usage: "
-  echo "  arn [-a] [-c] [-r] [-p] [-b] [-f]"
-  echo "  arn [-C n] [-R 0|1] [-B 6|8|16|24] [-P n] [-F n]"
-  echo "  arn [-M car|ear|mesh]"
+  echo "  arn [-a] [-m]"
+  echo "  arn [-R 0|1] [-C n] [-F n] [-B 6|8|16|24] [-P n]"
+  echo "  arn [-T 1|0] [-M car|ear|mesh]"
 }
 
 arn_mode() {
     local MODE=$1
     if [ "$MODE" == "mesh" ]; then
-        /usr/sbin/arn-wds-mesh
+        /usr/sbin/arn-mode mesh
     elif [ "$MODE" == "car" ]; then
-        /usr/sbin/arn-wds-car
+        /usr/sbin/arn-mode car
     else
-        /usr/sbin/arn-wds-ear
+        /usr/sbin/arn-mode ear
     fi
 }
 
@@ -34,7 +39,7 @@ monitor() {
 # break when got a valid option
 # JSON/all/monitor/Mode/help
 # TODO: channel/region/chanbw/txpower/freq
-while getopts "jamM:cC:rR:bB:pP:fF:h" OPT; do
+while getopts "jamM:cC:rR:bB:pP:fF:hT:v" OPT; do
     case "$OPT" in
         j)
             $ARN_MNGR json
@@ -80,6 +85,10 @@ while getopts "jamM:cC:rR:bB:pP:fF:h" OPT; do
             $ARN_MNGR chanbw $OPTARG
             break
             ;;
+        T)
+            $ARN_MNGR tx $OPTARG
+            break
+            ;;
         M)
             arn_mode $OPTARG
             break
@@ -92,8 +101,8 @@ while getopts "jamM:cC:rR:bB:pP:fF:h" OPT; do
             $ARN_MNGR all 2>/dev/null
             break
             ;;
-        h|?)
-            date; echo '----------------------------'
+        v|h|?)
+            version; echo '------------------------'
             help; break
             ;;
     esac
