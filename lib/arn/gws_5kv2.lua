@@ -43,6 +43,7 @@ gws_radio.cmd.channel_set   = '`which gws5001app` setchan %s 2> /dev/null '
 gws_radio.cmd.txpower_set   = '`which gws5001app` settxpwr %s 2> /dev/null '
 gws_radio.cmd.chanbw_set    = '`which gws5001app` setchanbw %s 2> /dev/null '
 gws_radio.cmd.rxgain_set    = '`which gws5001app` setrxgain %s 2> /dev/null '
+gws_radio.cmd.txchain_set   = '`which gws5001app` rf%s 2> /dev/null '
 
 function gws_radio.rfinfo_init()
     DBG(sfmt("GWS5Kv2----> update_init()"))
@@ -129,6 +130,9 @@ function gws_radio.SET_RT(key, value)
         result = false
     elseif (key == 'rxgain') then
         exec(sfmt(gws_radio.cmd.rxgain_set, value))
+        result = false
+    elseif (key == 'tx' or key == 'rf') then -- 'gws5001app rfon|rfoff'
+        exec(sfmt(gws_radio.cmd.txchain_set, value))
         result = false
     end
     gws_radio.rfinfo_clean()

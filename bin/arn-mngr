@@ -8,16 +8,18 @@ Tasks:
     2. read limits from "/etc/config/arn-spec"
     3. finally, set via "arn.hal_raw"
     4. "arn.mngr" provide CACHE
+    5. "qutil.rarp" provide RARP
     
 Maintainer: 
     by Qige <qigezhao@gmail.com>
-    2017.08.18
+    2017.08.18|2017.08.22
 ]]--
 
 --local DBG = print
 local function DBG(msg) end
 
 local mngr = require 'arn.mngr'
+local rarp = require 'qutil.rarp'
 local ccff = require 'qutil.ccff'
 local is_array  = ccff.val.is_array
 local sfmt      = string.format
@@ -100,7 +102,7 @@ local function format_abb(obj)
     if (peers and type(peers) == 'table' and #peers > 0) then
         for idx,peer in pairs(peers) do
             s2 = sfmt('link#%02d: %-23s | %s/%s/%s | Rx %s/%s | Tx %s/%s | %.2fs\n', 
-                    idx, mngr.FETCH_IP(peer.wmac), 
+                    idx, rarp.FETCH_IP(peer.wmac), 
                     valid_signal(peer.signal, peer.noise), peer.noise, 
                     calc_snr(peer.signal, peer.noise), peer.rx_mcs, peer.rx_br,
                     peer.tx_mcs, peer.tx_br, 
@@ -159,7 +161,6 @@ local function print_set_result(k, v)
     --print(sfmt("set %s=%s", k, v))
 end
 
--- TODO: 'monitor' cannot be interrupted
 -- SAFE_SET() will call SAFE_SAVE() automatically
 if (arg_key ~= 'nil') then
     if (arg_val ~= 'nil') then

@@ -56,14 +56,12 @@ dev_mngr.conf.config            = 'arn'
 
 dev_mngr.conf.fcache_set_expiry = 3
 
-dev_mngr.conf.rarp_cmd_fmt      = "rarp-client %s 211 | awk '{print $2}' | tr -d '\n'"
 dev_mngr.conf.nw_ifname         = 'br-lan'
 dev_mngr.conf.nw_cmd_fmt        = "cat /proc/net/dev | grep %s | awk '{print $2,$10}' | tr -d '\n'"
 dev_mngr.conf.nw_cache_intl     = 5
 
 dev_mngr.conf.fcache_radio      = '/tmp/.arn-cache.radio'
 dev_mngr.conf.fcache_nw         = '/tmp/.arn-cache.nw'
-dev_mngr.conf.fcache_rarp       = '/tmp/.arn-cache.dev-'
 
 dev_mngr.default = {}
 dev_mngr.default.chanbw         = 8
@@ -367,6 +365,14 @@ function dev_mngr.filter_mode(value)
     return result
 end
 
+function dev_mngr.filter_tx(value)
+    local result = 'off'
+    if (value == 'on' or value == 'ON' or value == '1' or value == 1) then
+        result = 'on'
+    end
+    return result
+end
+
 function dev_mngr.filter_item(item, value)
     local result
     if (item == 'region') then
@@ -476,6 +482,11 @@ function dev_mngr.set_with_filter(key, value)
         end
         
         print(sfmt("set chanbw to %s", val))
+    elseif (key == 'tx') then
+        DBG("--+ set tx chain")
+        val = dev_mngr.filter_tx(value)
+        
+        print(sfmt("set tx to %s", val))
     else
         -- transparent through
         print(sfmt("unknown %s=%s", key, value))
@@ -486,13 +497,15 @@ function dev_mngr.set_with_filter(key, value)
     DBG("--+ call HAL_SET()")
     result = DEV_HAL.HAL_SET_RT(key, val)
     if (result) then
-        print(sfmt("err: set %s=%s failed", key, val))
+        DBG(sfmt("err: set %s=%s failed", key, val))
     else
-        DBG("--+ call save_config()")
-        dev_mngr.save_config(key, val)
-        -- timeout & clean cache after set
-        local cache_file = dev_mngr.conf.fcache_radio
-        Cache.EXPIRES_UNTIL(cache_file, dev_mngr.conf.fcache_set_expiry, dev_mngr.limit.cache_timeout)
+        if (key ~= 'tx') then
+            DBG(sfmt("--+ call save_config(k=%s,v=%s)", key, value))
+            dev_mngr.save_config(key, val)
+            -- timeout & clean cache after set
+            local cache_file = dev_mngr.conf.fcache_radio
+            Cache.EXPIRES_UNTIL(cache_file, dev_mngr.conf.fcache_set_expiry, dev_mngr.limit.cache_timeout)
+        end
     end
     return key, val
 end
@@ -503,7 +516,7 @@ function dev_mngr.save_config(key, value)
     if (key == 'region') then
         DBG("--+ save config.region")
         util_set(dev_mngr.conf.config, 'v1', 'region', value)
-    elseif (key == 'channel' and key == 'channo') then
+    elseif (key == 'channel' or key == 'channo') then
         DBG("--+ save config.channel")
         util_set(dev_mngr.conf.config, 'v1', 'channel', value)
     elseif (key == 'txpower' or key == 'txpwr') then
@@ -566,65 +579,5 @@ function dev_mngr.SAFE_GET(with_unit)
     return result
 end
 
---[[
-Tasks:
-    1. Read IP from cache;
-    2. If cache missed, use RARP, & save to cache.
-]]--
-function dev_mngr.FETCH_IP(mac)
-    DBG(sfmt('mngr> FETCH_IP(%s)', mac))
-    if (mac and slen(mac) >= 17) then
-        local ip_raw = dev_mngr.load_ip_from_cache(mac)
-        if (ip_raw and ip_raw ~= '') then
-            DBG(sfmt('mngr----> cache convert: %s=%s)', mac, ip_raw))
-            return ip_raw .. ' + ' .. ssub(mac, 10, -1)
-        end
-        ip_raw = dev_mngr.rarp_request(mac)
-        if (ip_raw and ip_raw ~= '') then
-            DBG(sfmt('mngr----> rarp convert: %s=%s', mac, ip_raw or '-'))
-            dev_mngr.save_ip_to_cache(mac, ip_raw)
-            return ip_raw .. ' < ' .. ssub(mac, 10, -1)
-        end
-        return mac
-    end
-    return '(unknown)' .. ' + ' .. ssub(mac, 1, 8)
-end
-
--- Convert MAC to IP via cmd
--- +rarp-client +rarp-server
-function dev_mngr.rarp_request(mac)
-    local rarp_cmd_fmt = dev_mngr.conf.rarp_cmd_fmt
-    if (mac) then
-        local rarp = sfmt(rarp_cmd_fmt, mac)
-        return exec(rarp)
-    end
-    return nil
-end
-
-function dev_mngr.cache_key(mac)
-    return sgsub(mac or '', ':', '')
-end
-
-function dev_mngr.load_ip_from_cache(mac)
-    local key = dev_mngr.cache_key(mac)
-    local cache_file = dev_mngr.conf.fcache_rarp .. key
-    local cache = Cache.LOAD_VALID(cache_file, dev_mngr.default.rarp_timeout)
-    if (cache and type(cache) == 'table') then
-        local ip = cache[key] or ''
-        return ip
-    end
-    return nil
-end
-
-function dev_mngr.save_ip_to_cache(mac, ip)
-    local key = dev_mngr.cache_key(mac)
-    local cache_file = dev_mngr.conf.fcache_rarp .. key
-    local cache = Cache.LOAD_VALID(cache_file, dev_mngr.default.rarp_timeout)
-    if (not cache or type(cache) ~= 'table') then
-        cache = {}
-    end
-    cache[key] = ip
-    Cache.SAVE(cache_file, cache)
-end
 
 return dev_mngr
