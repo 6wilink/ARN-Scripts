@@ -36,6 +36,7 @@ local gws_abb = {}
 
 gws_abb.cmd = {}
 gws_abb.cmd.wmac        = 'cat /sys/class/net/wlan0/address 2>/dev/null | tr -d "\n"'
+gws_abb.cmd.ear_id      = 'uci get wireless.@wifi-iface[0].ssid 2> /dev/null'
 gws_abb.cmd.mesh_id     = 'uci get wireless.@wifi-iface[0].mesh_id 2> /dev/null'
 
 -- FIXME: should be read from config file
@@ -82,9 +83,15 @@ function gws_abb.wmac()
     return wmac
 end
 
-function gws_abb.mesh_id(mode)
-    local mesh_id = exec(gws_abb.cmd.mesh_id) or '--- '
-    return trimr(mesh_id, 1)
+function gws_abb.get_network_id(mode)
+    local network_id
+    if (mode == 'mesh') then
+        network_id = exec(gws_abb.cmd.mesh_id) or '--- '
+    else
+        network_id = exec(gws_abb.cmd.ear_id) or '--- '
+    end
+    network_id = trimr(network_id, 1)
+    return network_id
 end
 
 --[[
@@ -155,15 +162,17 @@ function gws_abb.update_safe_rt()
     abb.wmac    = suc(gws_abb.cache.wmac or '----')
     abb.chanbw  = gws_abb.conf.chanbw
     abb.mode    = format_mode(iw.mode(dev) or '----')
-    if (abb.mode == 'CAR' or abb.mode == 'EAR') then
+    if (abb.mode == 'CAR' or abb.mode == 'car') then
         abb.ssid = iw.ssid(dev) or '---'
-    elseif (abb.mode == 'Mesh') then
-        abb.ssid = gws_abb.mesh_id()
+    elseif (abb.mode == 'EAR' or abb.mode ==  'ear') then
+        abb.ssid = gws_abb.get_network_id('ear')
+    elseif (abb.mode == 'Mesh' or abb.mode == 'mesh' or abb.mode == 'MESH') then
+        abb.ssid = gws_abb.get_network_id('mesh')
     else
         abb.ssid = '----'
     end
     DBG(sfmt('hal gws_abb--------# mode=%s,bssid=%s,ssid=%s,wmac=%s,chanbw=%s,mode=%s',
-        abb.mode,abb.bssid, abb.ssid, abb.wmac, abb.chanbw, abb.mode))
+        abb.mode, abb.bssid, abb.ssid, abb.wmac, abb.chanbw, abb.mode))
 
     local noise = format_rf(iw.noise(dev))
     -- GWS4K noise may equals 0
