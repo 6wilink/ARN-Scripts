@@ -1,0 +1,7 @@
+
+config arn 'v1'
+	option txpower '30'
+	option chanbw '8'
+	option channel '45'
+	option region '1'
+

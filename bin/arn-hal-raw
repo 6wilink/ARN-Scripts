@@ -1,0 +1,65 @@
+#!/usr/bin/lua
+-- ARN Device HAL Layer
+-- Donot filter anything
+-- Provide unified commands
+-- by Qige <qigezhao@gmail.com>
+
+local gws_hal = require 'arn.hal_raw'
+local sfmt = string.format
+
+local arg_key = tostring(arg[1])
+local arg_val = tostring(arg[2])
+
+local function help()
+  print "usage: "
+  print "  arn-hal-raw [c|channo|r|region|rfinfo|p|txpower|b|chanbw]"
+  print "  arn-hal-raw [c|channo|r|region|rfinfo|p|txpower|b|chanbw] [value]"
+end
+
+local function format_item(key, value)
+    return sfmt("%s=%s", key, value or -1)
+end
+
+local function format_all(obj)
+    local result = ''
+    for i,v in pairs(obj) do
+        if (result ~= '') then result = result .. '\n' end
+        result = result .. sfmt("%s=%s", i, v)
+    end
+    return result
+end
+
+-- print each item from HAL
+local function format(key)
+    local gws_raw = gws_hal.HAL_GET_RADIO_RT()
+    local result = ''
+    if (key and key ~= 'all' and key ~= 'rfinfo') then
+        if (key == 'r' or key == 'region') then
+            result = format_item('region', gws_raw.region or -1)
+        elseif (key == 'c' or key == 'channo' or key == 'channel') then
+            result = format_item('region', gws_raw.channo or gws_raw.channel or -1)
+        elseif (key == 'p' or key == 'txpower') then
+            result = format_item('region', gws_raw.txpwr or gws_raw.txpower or -1)
+        elseif (key == 'b' or key == 'chanbw') then
+            result = format_item('region', gws_raw.chanbw or -1)
+        else
+            result = format_all(gws_raw)
+        end
+    else
+        result = format_all(gws_raw)
+    end
+    return result
+end
+
+-- FIXME: add all common commands
+if (arg_key ~= 'nil') then
+    if (arg_val ~= 'nil') then
+        print(sfmt("arn-hal-raw: set %s=%s", arg_key, arg_val))
+        gws_hal.HAL_SET_RT(arg_key, arg_val)
+    else
+        --print(sfmt("> %s", arg_key))
+        print(format(arg_key))
+    end
+else
+    help()
+end
