@@ -15,10 +15,10 @@ function lua_data.serialize(obj)
         lua = lua .. string.format("%q", obj)
     elseif t == "table" then
         lua = lua .. "{\n"
-    for k, v in pairs(obj) do
-        lua = lua .. "[" .. lua_data.serialize(k) .. "]=" .. lua_data.serialize(v) .. ",\n"
-    end
-    local metatable = getmetatable(obj)
+        for k, v in pairs(obj) do
+            lua = lua .. "[" .. lua_data.serialize(k) .. "]=" .. lua_data.serialize(v) .. ",\n"
+        end
+        local metatable = getmetatable(obj)
         if metatable ~= nil and type(metatable.__index) == "table" then
             for k, v in pairs(metatable.__index) do
                 lua = lua .. "[" .. lua_data.serialize(k) .. "]=" .. lua_data.serialize(v) .. ",\n"
