@@ -56,7 +56,8 @@ dev_mngr.conf.config            = 'arn'
 
 dev_mngr.conf.fcache_set_expiry = 3
 
-dev_mngr.conf.nw_ifname         = 'br-lan'
+--dev_mngr.conf.nw_ifname         = 'br-lan'
+dev_mngr.conf.nw_ifname         = 'eth0'
 dev_mngr.conf.nw_cmd_fmt        = "cat /proc/net/dev | grep %s | awk '{print $2,$10}' | tr -d '\n'"
 dev_mngr.conf.nw_cache_intl     = 5
 
