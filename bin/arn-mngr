@@ -12,22 +12,23 @@ Tasks:
     
 Maintainer: 
     by Qige <qigezhao@gmail.com>
-    2017.08.18|2017.08.22
+    2017.08.18|2017.08.22 v1.0
+    2017.08.29 v1.1
 ]]--
 
 --local DBG = print
 local function DBG(msg) end
 
-local mngr = require 'arn.mngr'
-local rarp = require 'qutil.rarp'
-local ccff = require 'qutil.ccff'
+local mngr = require 'arn.device.mngr'
+local rarp = require 'arn.utils.rarp'
+local ccff = require 'arn.utils.ccff'
 local is_array  = ccff.val.is_array
 local sfmt      = string.format
 local ssub      = string.sub
 local slen      = string.len
 local exec      = ccff.execute
 
-local VERSION = 'ARN-Scripts (+HAL +Cache +5K/+4K) v2017.08.18 '
+local VERSION = 'ARN-Scripts (+HAL +Cache +5K/+4K/+Wifi) v1.1-20170829 '
 
 local arg_key = tostring(arg[1]) -- nil > 'nil'
 local arg_val = tostring(arg[2]) -- nil > 'nil'

@@ -14,8 +14,8 @@ BugList:
 --local DBG = print
 local function DBG(msg) end
 
-local ccff = require 'qutil.ccff'
-local uhf = require 'arn.uhf'
+local ccff = require 'arn.utils.ccff'
+local uhf = require 'arn.device.uhf'
 
 local exec = ccff.execute
 local vint = ccff.val.n

@@ -23,9 +23,9 @@ LOG
 local function DBG(msg) end
 
 -- load Utilities
-local Ccff          = require 'qutil.ccff'
-local Cache         = require 'qutil.cache'
-local Uhf           = require 'arn.uhf'
+local Uhf           = require 'arn.device.uhf'
+local Ccff          = require 'arn.utils.ccff'
+local Cache         = require 'arn.utils.cache'
 
 local exec          = Ccff.execute
 local conf_get      = Ccff.conf.get
@@ -42,7 +42,7 @@ local slen          = string.len
 local ssub          = string.sub
 
 -- load ARN HAL Module
-local DEV_HAL = require 'arn.hal_raw'
+local DEV_HAL = require 'arn.device.hal.hal_raw'
 
 --[[
     Module:      Device Manager
@@ -146,7 +146,7 @@ function dev_mngr.kpi_cached_raw()
         DBG("----+ cache ARN Radio timeout, require update right away")
         radio_hal = dev_mngr.kpi_radio_rt_raw()
         
-        DBG(sfmt("--------# region=%s", radio_hal.region))
+        DBG(sfmt("--------# region=%s", (radio_hal and radio_hal.region) or '-'))
         Cache.SAVE(cache_file, radio_hal)
     end
     if (not is_array(radio_hal)) then radio_hal = {} end
@@ -414,7 +414,7 @@ function dev_mngr.filter_item_append_unit(item, value)
     else
         result = value
     end
-    return result
+    return tostring(result)
 end
 
 --[[
@@ -576,7 +576,7 @@ function dev_mngr.SAFE_GET(with_unit)
     result.nw_thrpt.tx = nw_thrpt.tx or 0.01
     
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
-    DBG("+ return result < freq=" .. result.radio_safe.freq)
+    DBG("+ return result < freq=" .. (result.radio_safe.freq or '-'))
     return result
 end
 

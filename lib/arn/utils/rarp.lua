@@ -5,8 +5,8 @@
 --local DBG = print
 local function DBG(msg) end
 
-local Cache = require 'qutil.cache'
-local Ccff = require 'qutil.ccff'
+local Cache = require 'arn.utils.cache'
+local Ccff = require 'arn.utils.ccff'
 local exec = Ccff.execute
 local sfmt = string.format
 local slen = string.len

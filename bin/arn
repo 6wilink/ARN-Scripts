@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="ARN-Scripts v1.0-170821Q"
+VERSION="ARN-Scripts v1.1-170829Q"
 ARN_MNGR=/usr/sbin/arn-mngr
 #ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
 

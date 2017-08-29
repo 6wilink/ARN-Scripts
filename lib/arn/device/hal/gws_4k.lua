@@ -10,8 +10,8 @@ Note:
 local DBG = print
 --local function DBG(msg) end
 
-local ccff = require 'qutil.ccff'
-local uhf = require 'arn.uhf'
+local ccff = require 'arn.utils.ccff'
+local uhf = require 'arn.device.uhf'
 
 local exec = ccff.execute
 local vint = ccff.val.n
@@ -41,6 +41,10 @@ gws_radio.cmd.rxgain_set    = 'setrxgain %s 2> /dev/null '
 function gws_radio.update_init()
     DBG(sfmt("GWS4K----> update_init()"))
     exec(gws_radio.cmd.rfinfo)
+end
+
+function gws_radio.rfinfo_clean()
+    exec(gws_radio.cmd.rfinfo_clean)
 end
 
 --[[
@@ -96,17 +100,23 @@ function gws_radio.UPDATE_RT()
 end
 
 function gws_radio.SET_RT(key, value)
+    local result = true
     DBG(sfmt("GWS4K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
+        result = false
     elseif (key == 'channel' or key == 'channo') then
         exec(sfmt(gws_radio.cmd.channel_set, value))
+        result = false
     elseif (key == 'txpower' or key == 'txpwr') then
         exec(sfmt(gws_radio.cmd.txpower_set, value))
+        result = false
     elseif (key == 'rxgain') then
         exec(sfmt(gws_radio.cmd.rxgain_set, value))
+        result = false
     end
-    exec(gws_radio.cmd.rfinfo_clean)
+    gws_radio.rfinfo_clean()
+    return result
 end
 
 return gws_radio
