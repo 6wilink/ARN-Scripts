@@ -194,8 +194,9 @@ function dev_mngr.calc_thrpt(bytes1, bytes2, elapsed)
     local bytes = bytes2 - bytes1
     if (bytes < 0) then bytes = 0 - bytes end
     
-    local bps = bytes * 8 / elapsed
+    local thrpt = tonumber(sfmt("%.0f", bytes * 8 / elapsed))
     
+    --[[
     if (bps > 1024 * 1024) then
         thrpt = sfmt("%.2f Mbps", (bps / 1024 / 1024))
     elseif (bps > 1024) then
@@ -203,6 +204,7 @@ function dev_mngr.calc_thrpt(bytes1, bytes2, elapsed)
     else
         thrpt = sfmt("%.2f bps", bps)
     end
+    ]]--
     return thrpt
 end
 
@@ -231,8 +233,8 @@ function dev_mngr.kpi_nw_thrpt_calc()
         end
     else
         DBG("--------+ Bad NW Thrpt cache")
-        result.rx = '0.00 bps'
-        result.tx = '0.00 bps'
+        result.rx = 0
+        result.tx = 0
         
         DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
         Cache.SAVE(cache_file, nw_rxtx_rt)

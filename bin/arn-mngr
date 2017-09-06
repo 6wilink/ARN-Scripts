@@ -122,9 +122,24 @@ local function format_radio(key, obj)
     return result .. '\n'
 end
 
+local function format_thrpt(val)
+    local thrpt = '0.00 Kbps'
+    if (val) then
+        local bps = tonumber(val)
+        if (bps > 1024 * 1024) then
+            thrpt = sfmt("%.2f Mbps", (bps / 1024 / 1024))
+        elseif (bps > 1024) then
+            thrpt = sfmt("%.2f Kbps", (bps / 1024))
+        else
+            thrpt = sfmt("%.2f bps", bps)
+        end
+    end
+    return thrpt
+end
+
 local function format_nw(key, obj)
     local result = sfmt('  thrpt: Rx %s, Tx %s ("arn -m" ONLY, not accurate)', 
-            obj.rx or '0.00 Kbps', obj.tx or '0.00 Kbps')
+            format_thrpt(obj.rx), format_thrpt(obj.tx))
     return result
 end
 
