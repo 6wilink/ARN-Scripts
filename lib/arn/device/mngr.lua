@@ -57,8 +57,9 @@ dev_mngr.conf.config            = 'arn'
 dev_mngr.conf.fcache_set_expiry = 3
 
 --dev_mngr.conf.nw_ifname         = 'br-lan'
-dev_mngr.conf.nw_ifname         = 'eth0'
-dev_mngr.conf.nw_cmd_fmt        = "cat /proc/net/dev | grep %s | awk '{print $2,$10}' | tr -d '\n'"
+dev_mngr.conf.nw_eth0_cmd        = "cat /proc/net/dev | grep eth0 | awk '{print $2,$10}'"
+dev_mngr.conf.nw_brlan_cmd        = "cat /proc/net/dev | grep br-lan | awk '{print $2,$10}'"
+dev_mngr.conf.nw_wlan0_cmd        = "cat /proc/net/dev | grep wlan0 | awk '{print $2,$10}'"
 dev_mngr.conf.nw_cache_intl     = 5
 
 dev_mngr.conf.fcache_radio      = '/tmp/.arn-cache.radio'
@@ -167,15 +168,18 @@ end
 
 function dev_mngr.kpi_nw_counters_rt()
     local result = {}
-    local cmd = sfmt(dev_mngr.conf.nw_cmd_fmt, dev_mngr.conf.nw_ifname)
+    local cmd = sfmt("%s; %s; %s", dev_mngr.conf.nw_eth0_cmd, dev_mngr.conf.nw_brlan_cmd, dev_mngr.conf.nw_wlan0_cmd)
     local counters = exec(cmd) or '0 0'
     --print(counters)
-    rxtx_bytes = ssplit(counters, ' ')
+    rxtx_bytes = ssplit(counters, ' \\\n')
     
     result.rx = 0
     result.tx = 0
     if (is_array(rxtx_bytes)) then
-        if (#rxtx_bytes >= 2) then
+        if (#rxtx_bytes >= 6) then
+            result.rx = rxtx_bytes[1] + rxtx_bytes[3] + rxtx_bytes[5]
+            result.tx = rxtx_bytes[2] + rxtx_bytes[4] + rxtx_bytes[6]
+        elseif (#rxtx_bytes >= 2) then
             result.rx = rxtx_bytes[1]
             result.tx = rxtx_bytes[2]
         end

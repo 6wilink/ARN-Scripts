@@ -54,9 +54,13 @@ end
 
 function ccff.file.write(path, data)
 	if (path and data) then
-		local fd = io.open(path, "w")
-		fd:write(data)
-		fd:close()
+		local fd = io.open(path, "w+")
+        if (fd) then
+            fd:write(data)
+            fd:close()
+        else
+            print('error> write file', path, 'failed')
+        end
 	end
 end
 

@@ -1,10 +1,11 @@
 --[[
 Note: 
-    Although GWS4K share the same methods and functions,
+    Although GWS3K share the same methods and functions,
     this copy will let maintainer handle 2 types of hardware.
 
     by Qige <qigezhao@gmail.com>
-    2017.08.16 update_rt
+    2017.08.16 update_rt, copied from gws_4k.lua
+    2017.10.19 dismiss error, function and data not verified
 ]]--
 
 local DBG = print
@@ -25,13 +26,11 @@ gws_radio.conf = {}
 gws_radio.conf.val_length_max = 8
 
 gws_radio.cmd = {}
-gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS4Kv2.tmp'
-gws_radio.cmd.rfinfo_lock   = '/tmp/.GWS4Kv2.lock'
-gws_radio.cmd.rfinfo_wait   = 'sleep 2'
-gws_radio.cmd.rfinfo        = 'rfinfo 2>/dev/null > /tmp/.GWS4K.tmp'
-gws_radio.cmd.region        = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep Region -A1 | grep [01]* -o'
-gws_radio.cmd.channel       = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep Channel -A1 | grep [0-9]* -o'
-gws_radio.cmd.txpower       = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep ^Tx | grep Power | grep [0-9\.]* -o'
+gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS3K.tmp'
+gws_radio.cmd.rfinfo        = 'rfinfo 2>/dev/null > /tmp/.GWS3K.tmp'
+gws_radio.cmd.region        = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep Region -A1 | grep [01]* -o'
+gws_radio.cmd.channel       = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep Channel -A1 | grep [0-9]* -o'
+gws_radio.cmd.txpower       = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep ^Tx | grep Power | grep [0-9\.]* -o'
 gws_radio.cmd.chanbw        = 'uci get wireless.radio0.chanbw'
 
 gws_radio.cmd.region_set    = 'setregion %s 2> /dev/null '
@@ -41,31 +40,8 @@ gws_radio.cmd.chanbw_set    = 'setchanbw %s 2> /dev/null '
 gws_radio.cmd.rxgain_set    = 'setrxgain %s 2> /dev/null '
 
 function gws_radio.update_init()
-    DBG(sfmt("GWS4K----> update_init()"))
-    -- v2.0 2017.10.19 enable read lock
-    rfinfo_lock = fread(gws_radio.cmd.rfinfo_lock)
-    if (rfinfo_lock ~= 'lock' and rfinfo_lock ~= 'lock\n') then
-        print(sfmt('%80s', 'updating radio'))
-        DBG('note> updating device < lock:', rfinfo_lock)
-        fwrite(gws_radio.cmd.rfinfo_lock, 'lock')
-        exec(gws_radio.cmd.rfinfo)
-        fwrite(gws_radio.cmd.rfinfo_lock, 'unlock')
-        DBG('note> updated')
-    else
-        print(sfmt('%80s', 'device busy'))
-        lock_counts = 3
-        while(rfinfo_lock == 'lock' or rfinfo_lock == 'lock\n') do
-            exec(gws_radio.cmd.rfinfo_wait)
-            rfinfo_lock = fread(gws_radio.cmd.rfinfo_lock)
-            lock_counts = lock_counts - 1
-            if (lock_counts < 0) then
-                print(sfmt('%80s', 'solving dead-lock'))
-                break
-            end
-        end
-        fwrite(gws_radio.cmd.rfinfo_lock, 'unlock') -- FIXME
-    end
-    --print(exec(gws_radio.cmd.rfinfo_all))
+    DBG(sfmt("GWS3K----> update_init()"))
+    exec(gws_radio.cmd.rfinfo)
 end
 
 function gws_radio.rfinfo_clean()
@@ -102,22 +78,22 @@ Tasks:
     2. Fetch each parameters from tmp file.
 ]]--
 function gws_radio.UPDATE_RT()
-    DBG(sfmt("GWS4K> update_rt (@%d)", os.time()))
+    DBG(sfmt("GWS3K> update_rt (@%d)", os.time()))
     local result = {}
     
     gws_radio.update_init()
     
-    DBG(sfmt("GWS4K----> update_item() region"))
+    DBG(sfmt("GWS3K----> update_item() region"))
     result.region = gws_radio.update_item('region')
     
-    DBG(sfmt("GWS4K----> update_item() channel"))
+    DBG(sfmt("GWS3K----> update_item() channel"))
     result.channo = gws_radio.update_item('channel')
     result.freq = uhf.channel_to_freq(result.region, result.channo)
     
-    DBG(sfmt("GWS4K----> update_item() txpower"))
+    DBG(sfmt("GWS3K----> update_item() txpower"))
     result.txpwr = gws_radio.update_item('txpower')
     
-    DBG(sfmt("GWS4K----> update_item() chanbw"))
+    DBG(sfmt("GWS3K----> update_item() chanbw"))
     result.chanbw = gws_radio.update_item('chanbw')
     
     --result.ts = os.time()
@@ -126,7 +102,7 @@ end
 
 function gws_radio.SET_RT(key, value)
     local result = true
-    DBG(sfmt("GWS4K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
+    DBG(sfmt("GWS3K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
         result = false

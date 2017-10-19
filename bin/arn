@@ -1,8 +1,9 @@
 #!/bin/sh
+# 2017.10.19 continue ARN-Scripts
+# TODO: JSON not supported yet
 
-VERSION="ARN-Scripts v1.1-170829Q"
+VERSION="ARN-Scripts v2.0-191017Q"
 ARN_MNGR=/usr/sbin/arn-mngr
-#ARN_MNGR_JSON=/usr/sbin/arn-mngr-json
 
 version() {
     echo "$VERSION"
