@@ -55,14 +55,14 @@ function gws_radio.rfinfo_init()
     -- v2.0 2017.10.19 enable read lock
     rfinfo_lock = fread(gws_radio.cmd.rfinfo_lock)
     if (rfinfo_lock ~= 'lock' and rfinfo_lock ~= 'lock\n') then
-        print(sfmt('%80s', 'updating radio'))
+        print(sfmt('%80s', '> updating radio <'))
         DBG('note> updating device < lock:', rfinfo_lock)
         fwrite(gws_radio.cmd.rfinfo_lock, 'lock')
         exec(gws_radio.cmd.rfinfo)
         fwrite(gws_radio.cmd.rfinfo_lock, 'unlock')
         DBG('note> updated')
     else
-        print(sfmt('%80s', 'device busy'))
+        print(sfmt('%80s', '> device busy <'))
         lock_counts = 3
         while(rfinfo_lock == 'lock' or rfinfo_lock == 'lock\n') do
             exec(gws_radio.cmd.rfinfo_wait)
