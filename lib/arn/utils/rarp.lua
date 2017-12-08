@@ -17,25 +17,31 @@ local rarp = {}
 rarp.conf = {}
 rarp.conf.fcache_rarp = '/tmp/.arn-cache.dev-'
 rarp.conf.rarp_cmd_fmt = "rarp-client %s 211 | awk '{print $2}' | tr -d '\n'"
-rarp.conf.rarp_timeout = 300
+rarp.conf.rarp_timeout = 3600
 
 --[[
 Tasks:
     1. Read IP from cache;
     2. If cache missed, use RARP, & save to cache.
 ]]--
-function rarp.FETCH_IP(mac)
+function rarp.FETCH_IP(mac, flagIPOnly)
     DBG(sfmt('rarp> FETCH_IP(%s)', mac))
     if (mac and slen(mac) >= 17) then
         local ip_raw = rarp.load_ip_from_cache(mac)
         if (ip_raw and ip_raw ~= '') then
             DBG(sfmt('rarp> ----+ cache convert: %s=%s)', mac, ip_raw))
+            if (flagIPOnly) then
+                return ip_raw
+            end
             return ip_raw .. ' ' .. ssub(mac, 10, -1)
         end
         ip_raw = rarp.rarp_request(mac)
         if (ip_raw and ip_raw ~= '') then
             DBG(sfmt('rarp> ----+ rarp convert: %s=%s', mac, ip_raw or '-'))
             rarp.save_ip_to_cache(mac, ip_raw)
+            if (flagIPOnly) then
+                return ip_raw
+            end
             return ip_raw .. '+' .. ssub(mac, 10, -1)
         end
         return mac
