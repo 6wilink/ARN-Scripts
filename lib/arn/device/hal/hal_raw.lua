@@ -2,7 +2,7 @@
 -- 2017.08.01 hw_platform|init|HAL_SET_RT|HAL_GET_RT
 -- 2017.08.16 GWS4K|GWS5K|cmd_interval
 
-local ccff = require 'qutil.ccff'
+local ccff = require 'arn.utils.ccff'
 local exec          = ccff.execute
 local file_read     = ccff.file.read
 local file_write    = ccff.file.write
@@ -17,11 +17,11 @@ local function DBG(msg) end
 
 local gws_raw = {}
 
-gws_raw.abb = require 'arn.gws_abb'
-gws_raw.Util_GWS3K      = require 'arn.gws_3k'
-gws_raw.Util_GWS4K      = require 'arn.gws_4k'
-gws_raw.Util_GWS5Kv1    = require 'arn.gws_5kv1'
-gws_raw.Util_GWS5Kv2    = require 'arn.gws_5kv2'
+gws_raw.abb = require 'arn.device.hal.gws_abb'
+gws_raw.Util_GWS3K      = require 'arn.device.hal.gws_3k'
+gws_raw.Util_GWS4K      = require 'arn.device.hal.gws_4k'
+gws_raw.Util_GWS5Kv1    = require 'arn.device.hal.gws_5kv1'
+gws_raw.Util_GWS5Kv2    = require 'arn.device.hal.gws_5kv2'
 
 gws_raw.conf = {}
 gws_raw.conf.cmd_cpu        = 'cat /proc/cpuinfo | grep system'

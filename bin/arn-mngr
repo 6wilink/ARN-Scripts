@@ -8,26 +8,28 @@ Tasks:
     2. read limits from "/etc/config/arn-spec"
     3. finally, set via "arn.hal_raw"
     4. "arn.mngr" provide CACHE
-    5. "qutil.rarp" provide RARP
+    5. "qutil.rarp" provide RARP (+rarp-client +rarp-server)
     
 Maintainer: 
     by Qige <qigezhao@gmail.com>
-    2017.08.18|2017.08.22
+    2017.08.18|2017.08.22 v1.0
+    2017.08.29 v1.1
+    2017.10.19 v2.0 continue ARN-Scripts; plan to add ARN-iOMC3-Agent
 ]]--
 
 --local DBG = print
 local function DBG(msg) end
 
-local mngr = require 'arn.mngr'
-local rarp = require 'qutil.rarp'
-local ccff = require 'qutil.ccff'
+local mngr = require 'arn.device.mngr'
+local rarp = require 'arn.utils.rarp'
+local ccff = require 'arn.utils.ccff'
 local is_array  = ccff.val.is_array
 local sfmt      = string.format
 local ssub      = string.sub
 local slen      = string.len
 local exec      = ccff.execute
 
-local VERSION = 'ARN-Scripts (+HAL +Cache +5K/+4K) v2017.08.18 '
+local VERSION = 'ARN-Scripts (+HAL +Cache +5Kv2) v2.0-191017Q'
 
 local arg_key = tostring(arg[1]) -- nil > 'nil'
 local arg_val = tostring(arg[2]) -- nil > 'nil'
@@ -121,9 +123,22 @@ local function format_radio(key, obj)
     return result .. '\n'
 end
 
+local function format_thrpt(val)
+    local thrpt = '0.00 Kbps'
+    if (val) then
+        local bps = tonumber(val)
+        if (bps > 1024 * 1024) then
+            thrpt = sfmt("%.2f Mbps", (bps / 1024 / 1024))
+        else
+            thrpt = sfmt("%.2f Kbps", (bps / 1024))
+        end
+    end
+    return thrpt
+end
+
 local function format_nw(key, obj)
     local result = sfmt('  thrpt: Rx %s, Tx %s ("arn -m" ONLY, not accurate)', 
-            obj.rx or '0.00 Kbps', obj.tx or '0.00 Kbps')
+            format_thrpt(obj.rx), format_thrpt(obj.tx))
     return result
 end
 

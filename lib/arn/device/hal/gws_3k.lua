@@ -1,17 +1,18 @@
 --[[
 Note: 
-    Although GWS4K share the same methods and functions,
+    Although GWS3K share the same methods and functions,
     this copy will let maintainer handle 2 types of hardware.
 
     by Qige <qigezhao@gmail.com>
-    2017.08.16 update_rt
+    2017.08.16 update_rt, copied from gws_4k.lua
+    2017.10.19 dismiss error, function and data not verified
 ]]--
 
 local DBG = print
 --local function DBG(msg) end
 
-local ccff = require 'qutil.ccff'
-local uhf = require 'arn.uhf'
+local ccff = require 'arn.utils.ccff'
+local uhf = require 'arn.device.uhf'
 
 local exec = ccff.execute
 local vint = ccff.val.n
@@ -25,11 +26,11 @@ gws_radio.conf = {}
 gws_radio.conf.val_length_max = 8
 
 gws_radio.cmd = {}
-gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS4K.tmp'
-gws_radio.cmd.rfinfo        = 'rfinfo 2>/dev/null > /tmp/.GWS4K.tmp'
-gws_radio.cmd.region        = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep Region -A1 | grep [01]* -o'
-gws_radio.cmd.channel       = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep Channel -A1 | grep [0-9]* -o'
-gws_radio.cmd.txpower       = 'cat /tmp/.GWS4K.tmp 2> /dev/null | grep ^Tx | grep Power | grep [0-9\.]* -o'
+gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS3K.tmp'
+gws_radio.cmd.rfinfo        = 'rfinfo 2>/dev/null > /tmp/.GWS3K.tmp'
+gws_radio.cmd.region        = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep Region -A1 | grep [01]* -o'
+gws_radio.cmd.channel       = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep Channel -A1 | grep [0-9]* -o'
+gws_radio.cmd.txpower       = 'cat /tmp/.GWS3K.tmp 2> /dev/null | grep ^Tx | grep Power | grep [0-9\.]* -o'
 gws_radio.cmd.chanbw        = 'uci get wireless.radio0.chanbw'
 
 gws_radio.cmd.region_set    = 'setregion %s 2> /dev/null '
@@ -39,8 +40,12 @@ gws_radio.cmd.chanbw_set    = 'setchanbw %s 2> /dev/null '
 gws_radio.cmd.rxgain_set    = 'setrxgain %s 2> /dev/null '
 
 function gws_radio.update_init()
-    DBG(sfmt("GWS4K----> update_init()"))
+    DBG(sfmt("GWS3K----> update_init()"))
     exec(gws_radio.cmd.rfinfo)
+end
+
+function gws_radio.rfinfo_clean()
+    exec(gws_radio.cmd.rfinfo_clean)
 end
 
 --[[
@@ -73,22 +78,22 @@ Tasks:
     2. Fetch each parameters from tmp file.
 ]]--
 function gws_radio.UPDATE_RT()
-    DBG(sfmt("GWS4K> update_rt (@%d)", os.time()))
+    DBG(sfmt("GWS3K> update_rt (@%d)", os.time()))
     local result = {}
     
     gws_radio.update_init()
     
-    DBG(sfmt("GWS4K----> update_item() region"))
+    DBG(sfmt("GWS3K----> update_item() region"))
     result.region = gws_radio.update_item('region')
     
-    DBG(sfmt("GWS4K----> update_item() channel"))
+    DBG(sfmt("GWS3K----> update_item() channel"))
     result.channo = gws_radio.update_item('channel')
     result.freq = uhf.channel_to_freq(result.region, result.channo)
     
-    DBG(sfmt("GWS4K----> update_item() txpower"))
+    DBG(sfmt("GWS3K----> update_item() txpower"))
     result.txpwr = gws_radio.update_item('txpower')
     
-    DBG(sfmt("GWS4K----> update_item() chanbw"))
+    DBG(sfmt("GWS3K----> update_item() chanbw"))
     result.chanbw = gws_radio.update_item('chanbw')
     
     --result.ts = os.time()
@@ -96,17 +101,23 @@ function gws_radio.UPDATE_RT()
 end
 
 function gws_radio.SET_RT(key, value)
-    DBG(sfmt("GWS4K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
+    local result = true
+    DBG(sfmt("GWS3K> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
         exec(sfmt(gws_radio.cmd.region_set, value))
+        result = false
     elseif (key == 'channel' or key == 'channo') then
         exec(sfmt(gws_radio.cmd.channel_set, value))
+        result = false
     elseif (key == 'txpower' or key == 'txpwr') then
         exec(sfmt(gws_radio.cmd.txpower_set, value))
+        result = false
     elseif (key == 'rxgain') then
         exec(sfmt(gws_radio.cmd.rxgain_set, value))
+        result = false
     end
-    exec(gws_radio.cmd.rfinfo_clean)
+    gws_radio.rfinfo_clean()
+    return result
 end
 
 return gws_radio

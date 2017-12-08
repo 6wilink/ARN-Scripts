@@ -23,9 +23,9 @@ LOG
 local function DBG(msg) end
 
 -- load Utilities
-local Ccff          = require 'qutil.ccff'
-local Cache         = require 'qutil.cache'
-local Uhf           = require 'arn.uhf'
+local Uhf           = require 'arn.device.uhf'
+local Ccff          = require 'arn.utils.ccff'
+local Cache         = require 'arn.utils.cache'
 
 local exec          = Ccff.execute
 local conf_get      = Ccff.conf.get
@@ -42,7 +42,7 @@ local slen          = string.len
 local ssub          = string.sub
 
 -- load ARN HAL Module
-local DEV_HAL = require 'arn.hal_raw'
+local DEV_HAL = require 'arn.device.hal.hal_raw'
 
 --[[
     Module:      Device Manager
@@ -57,8 +57,9 @@ dev_mngr.conf.config            = 'arn'
 dev_mngr.conf.fcache_set_expiry = 3
 
 --dev_mngr.conf.nw_ifname         = 'br-lan'
-dev_mngr.conf.nw_ifname         = 'eth0'
-dev_mngr.conf.nw_cmd_fmt        = "cat /proc/net/dev | grep %s | awk '{print $2,$10}' | tr -d '\n'"
+dev_mngr.conf.nw_eth0_cmd        = "cat /proc/net/dev | grep eth0 | awk '{print $2,$10}'"
+dev_mngr.conf.nw_brlan_cmd        = "cat /proc/net/dev | grep br-lan | awk '{print $2,$10}'"
+dev_mngr.conf.nw_wlan0_cmd        = "cat /proc/net/dev | grep wlan0 | awk '{print $2,$10}'"
 dev_mngr.conf.nw_cache_intl     = 5
 
 dev_mngr.conf.fcache_radio      = '/tmp/.arn-cache.radio'
@@ -146,7 +147,7 @@ function dev_mngr.kpi_cached_raw()
         DBG("----+ cache ARN Radio timeout, require update right away")
         radio_hal = dev_mngr.kpi_radio_rt_raw()
         
-        DBG(sfmt("--------# region=%s", radio_hal.region))
+        DBG(sfmt("--------# region=%s", (radio_hal and radio_hal.region) or '-'))
         Cache.SAVE(cache_file, radio_hal)
     end
     if (not is_array(radio_hal)) then radio_hal = {} end
@@ -167,15 +168,18 @@ end
 
 function dev_mngr.kpi_nw_counters_rt()
     local result = {}
-    local cmd = sfmt(dev_mngr.conf.nw_cmd_fmt, dev_mngr.conf.nw_ifname)
+    local cmd = sfmt("%s; %s; %s", dev_mngr.conf.nw_eth0_cmd, dev_mngr.conf.nw_brlan_cmd, dev_mngr.conf.nw_wlan0_cmd)
     local counters = exec(cmd) or '0 0'
     --print(counters)
-    rxtx_bytes = ssplit(counters, ' ')
+    rxtx_bytes = ssplit(counters, ' \\\n')
     
     result.rx = 0
     result.tx = 0
     if (is_array(rxtx_bytes)) then
-        if (#rxtx_bytes >= 2) then
+        if (#rxtx_bytes >= 6) then
+            result.rx = rxtx_bytes[1] + rxtx_bytes[3] + rxtx_bytes[5]
+            result.tx = rxtx_bytes[2] + rxtx_bytes[4] + rxtx_bytes[6]
+        elseif (#rxtx_bytes >= 2) then
             result.rx = rxtx_bytes[1]
             result.tx = rxtx_bytes[2]
         end
@@ -194,8 +198,9 @@ function dev_mngr.calc_thrpt(bytes1, bytes2, elapsed)
     local bytes = bytes2 - bytes1
     if (bytes < 0) then bytes = 0 - bytes end
     
-    local bps = bytes * 8 / elapsed
+    local thrpt = tonumber(sfmt("%.0f", bytes * 8 / elapsed))
     
+    --[[
     if (bps > 1024 * 1024) then
         thrpt = sfmt("%.2f Mbps", (bps / 1024 / 1024))
     elseif (bps > 1024) then
@@ -203,6 +208,7 @@ function dev_mngr.calc_thrpt(bytes1, bytes2, elapsed)
     else
         thrpt = sfmt("%.2f bps", bps)
     end
+    ]]--
     return thrpt
 end
 
@@ -231,8 +237,8 @@ function dev_mngr.kpi_nw_thrpt_calc()
         end
     else
         DBG("--------+ Bad NW Thrpt cache")
-        result.rx = '0.00 bps'
-        result.tx = '0.00 bps'
+        result.rx = 0
+        result.tx = 0
         
         DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
         Cache.SAVE(cache_file, nw_rxtx_rt)
@@ -414,7 +420,7 @@ function dev_mngr.filter_item_append_unit(item, value)
     else
         result = value
     end
-    return result
+    return tostring(result)
 end
 
 --[[
@@ -576,7 +582,7 @@ function dev_mngr.SAFE_GET(with_unit)
     result.nw_thrpt.tx = nw_thrpt.tx or 0.01
     
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
-    DBG("+ return result < freq=" .. result.radio_safe.freq)
+    DBG("+ return result < freq=" .. (result.radio_safe.freq or '-'))
     return result
 end
 

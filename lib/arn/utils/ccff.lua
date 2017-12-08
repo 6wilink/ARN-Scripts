@@ -1,6 +1,7 @@
 -- cmd/conf/file/filter
 -- by Qige <qigezhao@gmail.com>
 -- 2017.06.30/2017.08.11
+-- 2017.09.06 ccff.file.exists
 
 local uci = require 'uci'
 
@@ -53,10 +54,22 @@ end
 
 function ccff.file.write(path, data)
 	if (path and data) then
-		local fd = io.open(path, "w")
-		fd:write(data)
-		fd:close()
+		local fd = io.open(path, "w+")
+        if (fd) then
+            fd:write(data)
+            fd:close()
+        else
+            print('error> write file', path, 'failed')
+        end
 	end
+end
+
+function ccff.file.exists(path)
+    local result = ccff.file.read(path)
+    if (result) then
+        return true
+    end
+    return false
 end
 
 function ccff.file.cp(src, des)

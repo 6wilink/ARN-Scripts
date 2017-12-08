@@ -5,8 +5,8 @@
 --local DBG = print
 local function DBG(msg) end
 
-local Serializer    = require 'qutil.serialize'
-local Ccff          = require 'qutil.ccff'
+local Serializer    = require 'arn.utils.serialize'
+local Ccff          = require 'arn.utils.ccff'
 local file_read     = Ccff.file.read
 local file_write    = Ccff.file.write
 local vint          = Ccff.val.n

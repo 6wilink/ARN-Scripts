@@ -16,7 +16,7 @@ local function DBG(msg) end
 
 local iwinfo = require "iwinfo"
 
-local ccff = require "qutil.ccff"
+local ccff = require "arn.utils.ccff"
 local fget  = ccff.conf.get
 local fset  = ccff.conf.set
 local s     = ccff.val.s

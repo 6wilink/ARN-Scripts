@@ -51,7 +51,11 @@ function uhf.channel_to_freq(region, channel)
     DBG(sfmt("--------> (FIXME) channel_to_freq(UHF r=%s, c=%s)", region or '-', channel or '-'))
     local freq = 470
     if (region and channel) then
-        if (region > 0) then
+		local rgn = 1
+        if (type(region) == 'number') then
+            rgn = tonumber(region)
+        end
+        if (rgn > 0) then
             freq = freq + (0.5 + channel - 21) * 8
         else
             freq = freq + (0.5 + channel - 14) * 6

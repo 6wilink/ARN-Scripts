@@ -14,14 +14,17 @@ BugList:
 --local DBG = print
 local function DBG(msg) end
 
-local ccff = require 'qutil.ccff'
-local uhf = require 'arn.uhf'
+local ccff = require 'arn.utils.ccff'
+local uhf = require 'arn.device.uhf'
 
 local exec = ccff.execute
 local vint = ccff.val.n
 local sfmt = string.format
 local ssub = string.sub
 local slen = string.len
+
+local fread = ccff.file.read
+local fwrite = ccff.file.write
 
 local gws_radio = {}
 
@@ -30,6 +33,8 @@ gws_radio.conf.val_length_max = 8
 
 gws_radio.cmd = {}
 gws_radio.cmd.rfinfo_clean  = 'echo > /tmp/.GWS5Kv2.tmp'
+gws_radio.cmd.rfinfo_lock   = '/tmp/.GWS5Kv2.lock'
+gws_radio.cmd.rfinfo_wait   = 'sleep 1'
 gws_radio.cmd.rfinfo        = 'echo > /tmp/.GWS5Kv2.tmp; `which gws5001app` rfinfo >/dev/null 2>&1; `which gws5001app` rfinfo 2>/dev/null > /tmp/.GWS5Kv2.tmp'
 gws_radio.cmd.rfinfo_all    = 'cat /tmp/.GWS5Kv2.tmp 2>/dev/null'
 gws_radio.cmd.region        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Region | grep [01]* -o'
@@ -47,7 +52,29 @@ gws_radio.cmd.txchain_set   = '`which gws5001app` rf%s 2> /dev/null '
 
 function gws_radio.rfinfo_init()
     DBG(sfmt("GWS5Kv2----> update_init()"))
-    exec(gws_radio.cmd.rfinfo)
+    -- v2.0 2017.10.19 enable read lock
+    rfinfo_lock = fread(gws_radio.cmd.rfinfo_lock)
+    if (rfinfo_lock ~= 'lock' and rfinfo_lock ~= 'lock\n') then
+        print(sfmt('%80s', '> updating radio <'))
+        DBG('note> updating device < lock:', rfinfo_lock)
+        fwrite(gws_radio.cmd.rfinfo_lock, 'lock')
+        exec(gws_radio.cmd.rfinfo)
+        fwrite(gws_radio.cmd.rfinfo_lock, 'unlock')
+        DBG('note> updated')
+    else
+        print(sfmt('%80s', '> device busy <'))
+        lock_counts = 3
+        while(rfinfo_lock == 'lock' or rfinfo_lock == 'lock\n') do
+            exec(gws_radio.cmd.rfinfo_wait)
+            rfinfo_lock = fread(gws_radio.cmd.rfinfo_lock)
+            lock_counts = lock_counts - 1
+            if (lock_counts < 0) then
+                print(sfmt('%80s', 'solving dead-lock'))
+                break
+            end
+        end
+        fwrite(gws_radio.cmd.rfinfo_lock, 'unlock') -- FIXME
+    end
     --print(exec(gws_radio.cmd.rfinfo_all))
 end
 
