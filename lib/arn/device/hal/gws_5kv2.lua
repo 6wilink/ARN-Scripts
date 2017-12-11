@@ -1,5 +1,5 @@
 --[[
-Note: 
+Note:
     Although GWS5Kv1 & GWS5Kv2 share the same methods and functions,
     this copy will let maintainer handle 2 types of hardware.
 
@@ -38,7 +38,7 @@ gws_radio.cmd.rfinfo_wait   = 'sleep 1'
 gws_radio.cmd.rfinfo        = 'echo > /tmp/.GWS5Kv2.tmp; `which gws5001app` rfinfo >/dev/null 2>&1; `which gws5001app` rfinfo 2>/dev/null > /tmp/.GWS5Kv2.tmp'
 gws_radio.cmd.rfinfo_all    = 'cat /tmp/.GWS5Kv2.tmp 2>/dev/null'
 gws_radio.cmd.region        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Region | grep [01]* -o'
-gws_radio.cmd.channel       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan: | grep [0-9]* -o'
+gws_radio.cmd.channel       = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan: | awk '{print $2}'"
 gws_radio.cmd.txpower       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Tx | grep Power | grep [0-9\.]* -o'
 gws_radio.cmd.chanbw        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan | grep BW | grep [0-9]* -o'
 gws_radio.cmd.rxgain        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Rx | grep Gain | grep [0-9\.]* -o'
@@ -116,25 +116,25 @@ Tasks:
 function gws_radio.UPDATE_RT()
     DBG(sfmt("GWS5Kv2> update_rt (@%d)", os.time()))
     local result = {}
-    
+
     gws_radio.rfinfo_init()
-    
+
     result.region = gws_radio.update_item('region') or '0'
     DBG(sfmt("GWS5Kv2----> update_item() region=%s", result.region))
-    
+
     result.channo = gws_radio.update_item('channel') or '0'
     result.freq = uhf.channel_to_freq(result.region, result.channo)
     DBG(sfmt("GWS5Kv2----> update_item() channel=%s,freq=%s", result.channo, result.freq))
-    
+
     result.txpwr = gws_radio.update_item('txpower') or '0'
     DBG(sfmt("GWS5Kv2----> update_item() txpower=%s", result.txpwr))
-    
+
     result.chanbw = gws_radio.update_item('chanbw') or '0'
     DBG(sfmt("GWS5Kv2----> update_item() chanbw=%s", result.chanbw))
-    
+
     result.rxgain = gws_radio.update_item('rxgain') or '0'
     DBG(sfmt("GWS5Kv2----> update_item() rxgain=%s", result.rxgain))
-    
+
     --result.ts = os.time()
     --gws_radio.rfinfo_clean()
     return result
