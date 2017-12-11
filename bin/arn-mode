@@ -7,7 +7,7 @@ arn_wds_car() {
     uci set wireless.@wifi-iface[0].wds=1
     #uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
     uci commit wireless
-    wifi
+    wifi >/dev/null 2>&1
 }
 
 arn_wds_ear() {
@@ -17,7 +17,7 @@ arn_wds_ear() {
     uci set wireless.@wifi-iface[0].wds=1
     #uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
     uci commit wireless
-    wifi
+    wifi >/dev/null 2>&1
 }
 
 arn_wds_mesh() {
@@ -27,28 +27,32 @@ arn_wds_mesh() {
     uci set wireless.@wifi-iface[0].wds=1
     #uci del wireless.@wifi-iface[0].ssid 2>/dev/null
     uci commit wireless
-    wifi
+    wifi >/dev/null 2>&1
 }
 
 arn_wds_adhoc() {
     echo " set mode to adhoc"
     uci set wireless.@wifi-iface[0].mode='adhoc'
-    #uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
+    #uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJAdHoc'
     uci set wireless.@wifi-iface[0].wds=1
     #uci del wireless.@wifi-iface[0].ssid 2>/dev/null
     uci commit wireless
-    wifi
+    wifi >/dev/null 2>&1
 }
 
 [ -n "$1" ] && {
     if [ "$1" == "car" ] || [ "$1" == "CAR" ]; then
         arn_wds_car
+        /usr/sbin/config_car >/dev/null 2>&1
     elif [ "$1" == "ear" ] || [ "$1" == "EAR" ]; then
         arn_wds_ear
+        /usr/sbin/config_ear >/dev/null 2>&1
     elif [ "$1" == "mesh" ] || [ "$1" == "MESH" ]; then
         arn_wds_mesh
+        /usr/sbin/config_mesh >/dev/null 2>&1
     elif [ "$1" == "adhoc" ] || [ "$1" == "ADHOC" ]; then
         arn_wds_adhoc
+        /usr/sbin/config_adhoc >/dev/null 2>&1
     else
         echo " unknown mode"
     fi

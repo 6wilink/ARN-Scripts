@@ -43,12 +43,12 @@ gws_radio.cmd.txpower       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Tx | gr
 gws_radio.cmd.chanbw        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan | grep BW | grep [0-9]* -o'
 gws_radio.cmd.rxgain        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Rx | grep Gain | grep [0-9\.]* -o'
 
-gws_radio.cmd.region_set    = '`which gws5001app` setregion %s 2> /dev/null '
-gws_radio.cmd.channel_set   = '`which gws5001app` setchan %s 2> /dev/null '
-gws_radio.cmd.txpower_set   = '`which gws5001app` settxpwr %s 2> /dev/null '
-gws_radio.cmd.chanbw_set    = '`which gws5001app` setchanbw %s 2> /dev/null '
-gws_radio.cmd.rxgain_set    = '`which gws5001app` setrxgain %s 2> /dev/null '
-gws_radio.cmd.txchain_set   = '`which gws5001app` rf%s 2> /dev/null '
+gws_radio.cmd.region_set    = '`which gws5001app` setregion %s 2> /dev/null; setregion %s 2> /dev/null; '
+gws_radio.cmd.channel_set   = '`which gws5001app` setchan %s 2> /dev/null; setchan %s 2> /dev/null; '
+gws_radio.cmd.txpower_set   = '`which gws5001app` settxpwr %s 2> /dev/null; settxpwr %s 2> /dev/null; '
+gws_radio.cmd.chanbw_set    = '`which gws5001app` setchanbw %s 2> /dev/null; setchanbw %s 2> /dev/null; '
+gws_radio.cmd.rxgain_set    = '`which gws5001app` setrxgain %s 2> /dev/null; setrxgain %s 2> /dev/null; '
+gws_radio.cmd.txchain_set   = '`which gws5001app` rf%s 2> /dev/null; rf%s 2> /dev/null; '
 
 function gws_radio.rfinfo_init()
     DBG(sfmt("GWS5Kv2----> update_init()"))
@@ -144,22 +144,22 @@ function gws_radio.SET_RT(key, value)
     local result = true
     DBG(sfmt("GWS5Kv2> set_rt k=%s,value=%s (@%d)", key or '-', value or '-', os.time()))
     if (key == 'region') then
-        exec(sfmt(gws_radio.cmd.region_set, value))
+        exec(sfmt(gws_radio.cmd.region_set, value, value))
         result = false
     elseif (key == 'channel' or key == 'channo') then
-        exec(sfmt(gws_radio.cmd.channel_set, value))
+        exec(sfmt(gws_radio.cmd.channel_set, value, value))
         result = false
     elseif (key == 'txpower' or key == 'txpwr') then
-        exec(sfmt(gws_radio.cmd.txpower_set, value))
+        exec(sfmt(gws_radio.cmd.txpower_set, value, value))
         result = false
     elseif (key == 'chanbw') then
-        exec(sfmt(gws_radio.cmd.chanbw_set, value))
+        exec(sfmt(gws_radio.cmd.chanbw_set, value, value))
         result = false
     elseif (key == 'rxgain') then
-        exec(sfmt(gws_radio.cmd.rxgain_set, value))
+        exec(sfmt(gws_radio.cmd.rxgain_set, value, value))
         result = false
     elseif (key == 'tx' or key == 'rf') then -- 'gws5001app rfon|rfoff'
-        exec(sfmt(gws_radio.cmd.txchain_set, value))
+        exec(sfmt(gws_radio.cmd.txchain_set, value, value))
         result = false
     end
     gws_radio.rfinfo_clean()

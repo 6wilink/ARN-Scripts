@@ -24,8 +24,10 @@ arn_mode() {
         /usr/sbin/arn-mode car
     elif [ "$MODE" == "adhoc" ]; then
         /usr/sbin/arn-mode adhoc
-    else
+    elif [ "$MODE" == "ear" ]; then
         /usr/sbin/arn-mode ear
+    else
+        echo "* unknown mode, not supported"
     fi
 }
 
