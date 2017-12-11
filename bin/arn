@@ -22,6 +22,8 @@ arn_mode() {
         /usr/sbin/arn-mode mesh
     elif [ "$MODE" == "car" ]; then
         /usr/sbin/arn-mode car
+    elif [ "$MODE" == "adhoc" ]; then
+        /usr/sbin/arn-mode adhoc
     else
         /usr/sbin/arn-mode ear
     fi
