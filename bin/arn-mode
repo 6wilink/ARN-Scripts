@@ -3,9 +3,9 @@
 arn_wds_car() {
     echo " set mode to car"
     uci set wireless.@wifi-iface[0].mode='ap'
-    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
+    #uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
     uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
+    #uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
     uci commit wireless
     wifi
 }
@@ -13,9 +13,9 @@ arn_wds_car() {
 arn_wds_ear() {
     echo " set mode to ear"
     uci set wireless.@wifi-iface[0].mode='sta'
-    uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
+    #uci set wireless.@wifi-iface[0].ssid='GWS5000_BJWDS'
     uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
+    #uci del wireless.@wifi-iface[0].mesh_id 2>/dev/null
     uci commit wireless
     wifi
 }
@@ -23,9 +23,19 @@ arn_wds_ear() {
 arn_wds_mesh() {
     echo " set mode to mesh"
     uci set wireless.@wifi-iface[0].mode='mesh'
-    uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
+    #uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
     uci set wireless.@wifi-iface[0].wds=1
-    uci del wireless.@wifi-iface[0].ssid 2>/dev/null
+    #uci del wireless.@wifi-iface[0].ssid 2>/dev/null
+    uci commit wireless
+    wifi
+}
+
+arn_wds_adhoc() {
+    echo " set mode to adhoc"
+    uci set wireless.@wifi-iface[0].mode='adhoc'
+    #uci set wireless.@wifi-iface[0].mesh_id='GWS5000_BJMesh'
+    uci set wireless.@wifi-iface[0].wds=1
+    #uci del wireless.@wifi-iface[0].ssid 2>/dev/null
     uci commit wireless
     wifi
 }
@@ -37,6 +47,8 @@ arn_wds_mesh() {
         arn_wds_ear
     elif [ "$1" == "mesh" ] || [ "$1" == "MESH" ]; then
         arn_wds_mesh
+    elif [ "$1" == "adhoc" ] || [ "$1" == "ADHOC" ]; then
+        arn_wds_adhoc
     else
         echo " unknown mode"
     fi
