@@ -14,7 +14,7 @@ LOG
                 sfmt|ssplit
     2017.08.11  abb_rt|radio_cache|cache_expires_until
     2017.08.16  nw_thrpt|Util.Cache|display timeout|+4K
-    
+
     2017.08.18  re-write after ARN-TPC
 ]]--
 
@@ -128,7 +128,7 @@ function dev_mngr.kpi_cached_raw()
 
     local result = {}
     local nw_thrpt, abb_safe_rt, radio_hal
-    
+
     -- ARNAnalogBaseband need realtime result (return instantly)
     abb_safe_rt = dev_mngr.kpi_abb_safe_rt_raw()
     if (not is_array(abb_safe_rt)) then abb_safe_rt = {} end
@@ -138,7 +138,7 @@ function dev_mngr.kpi_cached_raw()
     local cache_elapsed = 0
     local cache_file = dev_mngr.conf.fcache_radio
     local cache_timeout = vint(dev_mngr.limit.cache_timeout)
-    
+
     local cache = Cache.LOAD_VALID(cache_file, cache_timeout)
     if (is_array(cache)) then
         cache_elapsed = os.time() - (cache.ts or 0)
@@ -146,17 +146,17 @@ function dev_mngr.kpi_cached_raw()
     else
         DBG("----+ cache ARN Radio timeout, require update right away")
         radio_hal = dev_mngr.kpi_radio_rt_raw()
-        
+
         DBG(sfmt("--------# region=%s", (radio_hal and radio_hal.region) or '-'))
         Cache.SAVE(cache_file, radio_hal)
     end
     if (not is_array(radio_hal)) then radio_hal = {} end
-    
+
     -- add Timestamp
     radio_hal.elapsed = cache_elapsed
     radio_hal.timeout = cache_timeout
     radio_hal.ts = nil
-    
+
     -- Device "br-lan"
     nw_thrpt = dev_mngr.kpi_nw_thrpt_calc()
 
@@ -172,7 +172,7 @@ function dev_mngr.kpi_nw_counters_rt()
     local counters = exec(cmd) or '0 0'
     --print(counters)
     rxtx_bytes = ssplit(counters, ' \\\n')
-    
+
     result.rx = 0
     result.tx = 0
     if (is_array(rxtx_bytes)) then
@@ -197,9 +197,9 @@ function dev_mngr.calc_thrpt(bytes1, bytes2, elapsed)
 
     local bytes = bytes2 - bytes1
     if (bytes < 0) then bytes = 0 - bytes end
-    
+
     local thrpt = tonumber(sfmt("%.0f", bytes * 8 / elapsed))
-    
+
     --[[
     if (bps > 1024 * 1024) then
         thrpt = sfmt("%.2f Mbps", (bps / 1024 / 1024))
@@ -231,7 +231,7 @@ function dev_mngr.kpi_nw_thrpt_calc()
         local elapsed = (nw_rxtx_rt.ts or 0) - (nw_rxtx_last.ts or 0)
         result.rx = dev_mngr.calc_thrpt(nw_rxtx_rt.rx or 0, nw_rxtx_last.rx or 0, elapsed)
         result.tx = dev_mngr.calc_thrpt(nw_rxtx_rt.tx or 0, nw_rxtx_last.tx or 0, elapsed)
-        if (elapsed >= dev_mngr.conf.nw_cache_intl) then        
+        if (elapsed >= dev_mngr.conf.nw_cache_intl) then
             DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
             Cache.SAVE(cache_file, nw_rxtx_rt)
         end
@@ -239,7 +239,7 @@ function dev_mngr.kpi_nw_thrpt_calc()
         DBG("--------+ Bad NW Thrpt cache")
         result.rx = 0
         result.tx = 0
-        
+
         DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
         Cache.SAVE(cache_file, nw_rxtx_rt)
     end
@@ -293,7 +293,7 @@ function dev_mngr.filter_region(value)
     local vmin = dev_mngr.limit.region_min
     local vmax = dev_mngr.limit.region_max
     DBG(sfmt("--------# region range = [min %s, max %s]", vmin, vmax))
-    
+
     -- save to filter channo/channel
     local region = vlimit(v, vmin, vmax)
     dev_mngr.cache.region = region
@@ -351,7 +351,7 @@ end
 -- fetch chanbw from config file
 -- read from list, default '5 8 10 20'
 function dev_mngr.filter_chanbw(value)
-    DBG(sfmt("--------> filter_chanbw(b=%s) < default is 8", value or '-'))    
+    DBG(sfmt("--------> filter_chanbw(b=%s) < default is 8", value or '-'))
     local bw = value
     local range = dev_mngr.limit.chanbw_range
     local chanbw = dev_mngr.default.chanbw
@@ -402,7 +402,7 @@ function dev_mngr.filter_item_append_unit(item, value)
     local result
     if (item == 'region') then
         local region = dev_mngr.filter_region(value)
-        if (region > 0) then
+        if (region < 1) then
             result = region .. ' (US)'
         else
             result = region .. ' (CN)'
@@ -424,9 +424,9 @@ function dev_mngr.filter_item_append_unit(item, value)
 end
 
 --[[
-Range: 
+Range:
     Public API
-Tasks: 
+Tasks:
     1. Wrapper of set_with_filter()
 ]]--
 function dev_mngr.SAFE_SET(key, value)
@@ -438,7 +438,7 @@ end
 Tasks:
     1. Filter user input before sent to HAL Layer
     2. If current value equals filtered value, do nothing.
-FIXME: 
+FIXME:
     1. add all common commands/answers;
 ]]--
 function dev_mngr.set_with_filter(key, value)
@@ -451,54 +451,54 @@ function dev_mngr.set_with_filter(key, value)
     if (key == 'channel' or key == 'freq') then
         DBG("--+ set channel")
         local region = dev_mngr.filter_region(radio_hal.region)
-        
+
         local channel = value
         if (key == 'freq') then
             key = 'channel'
             channel = Uhf.freq_to_channel(region, dev_mngr.filter_freq(value))
         end
         val = dev_mngr.filter_channel(channel)
-        
+
         if (val == radio_hal.channo or val == radio_hal.channel) then
             return key, val
         end
-        
+
         print(sfmt("set channel to %s (freq=%s)", val, Uhf.channel_to_freq(region, val)))
     elseif (key == 'region') then
         DBG("--+ set region")
         val = dev_mngr.filter_region(value)
-        
+
         if (val == radio_hal.region) then return false end
-        
+
         print(sfmt("set region to %s", val))
     elseif (key == 'txpower' or key == 'txpwr') then
         DBG("--+ set txpower")
         val = dev_mngr.filter_txpower(value)
-        
+
         if (val == radio_hal.txpwr or val == radio_hal.txpower) then
             return key, val
         end
-        
+
         print(sfmt("set txpower to %s", val))
     elseif (key == 'chanbw') then
         DBG("--+ set chanbw")
         val = dev_mngr.filter_chanbw(value)
-        
+
         if (val == radio_hal.chanbw) then
             return key, val
         end
-        
+
         print(sfmt("set chanbw to %s", val))
     elseif (key == 'tx') then
         DBG("--+ set tx chain")
         val = dev_mngr.filter_tx(value)
-        
+
         print(sfmt("set tx to %s", val))
     else
         -- transparent through
         print(sfmt("unknown %s=%s", key, value))
     end
-    
+
     -- set via HAL Layer
     -- when done, save to config file
     DBG("--+ call HAL_SET()")
@@ -565,7 +565,7 @@ function dev_mngr.SAFE_GET(with_unit)
 
     DBG("+ start filter HAL.ARNRadio result")
     if (with_unit) then func = dev_mngr.filter_item_append_unit end
-    
+
     -- filter region first, to ENSURE filter_channel get right region cache value
     if (radio_hal.region) then func('region', radio_hal.region) end
 
@@ -575,12 +575,12 @@ function dev_mngr.SAFE_GET(with_unit)
     for i,v in pairs(radio_hal) do
         result.radio_safe[i] = func(i, v)
     end
-    
+
     -- safe rx/tx thrpt
     result.nw_thrpt = {}
     result.nw_thrpt.rx = nw_thrpt.rx or 0.01
     result.nw_thrpt.tx = nw_thrpt.tx or 0.01
-    
+
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
     DBG("+ return result < freq=" .. (result.radio_safe.freq or '-'))
     return result
