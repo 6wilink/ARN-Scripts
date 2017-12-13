@@ -21,41 +21,63 @@ end
 function JSON.encode_all(data)
     local json_str = ''
     if (data) then
-        local str_pair
+        local str_item, str_pair_begin, str_pair_end
         local data_type = type(data)
         if (data_type == 'table') then
-            str_pair = '{'
-			local str_re = ''
+            str_pair_begin = '{'
+            str_pair_end = '}'
+            str_item = ''
+            local str_item_value = ''
             local idx, val
             for idx,val in pairs(data) do
-				-- check idx is nubmer?
-				-- check val is table?
-				if (idx and type(idx) == 'number') then
-					str_re = sfmt('"%s":[%s]', idx, JSON.encode_all(val))
-				else
-					str_re = sfmt('"%s":%s', idx, JSON.encode_all(val))
-				end
-				if (str_pair ~= '{') then
-					str_pair = str_pair .. ','
-				end
-                str_pair = str_pair .. str_re
+                -- check idx is nubmer?
+                -- check val is table?
+                if (idx) then
+                    if (type(idx) == 'number') then
+                        str_pair_begin = '['
+                        str_pair_end = ']'
+                        if (str_item == '') then
+                            str_item = str_item .. str_pair_begin
+                        end
+                        str_item_value = string.format('%s', JSON.encode_all(val))
+                    else
+                        str_pair_begin = '{'
+                        str_pair_end = '}'
+                        if (str_item == '') then
+                            str_item = str_item .. str_pair_begin
+                        end
+                        str_item_value = string.format('"%s":%s', idx, JSON.encode_all(val))
+                    end
+                    if (str_item ~= '{' and str_item ~= '[') then
+                        str_item = str_item .. ','
+                    end
+                    str_item = str_item .. str_item_value
+                end
             end
-            str_pair = str_pair .. '}'
+            -- FIXME: empty table
+            if ((not str_item) or str_item == '') then
+                str_item = 'null'
+            else
+                str_item = str_item .. str_pair_end
+            end
         elseif (data_type == 'number') then
-            str_pair = data
+            str_item = data
         elseif (data_type == 'string') then
             if (data == 'nil' or data == 'null') then
-                str_pair = 'null'
+                str_item = 'null'
             else
-                str_pair = '"' .. data .. '"'
+                str_item = '"' .. data .. '"'
             end
         else
-            str_pair = 'null' -- data_type == nil
+            str_item = 'null' -- data_type == nil
         end
 
-        json_str = str_pair
-        str_pair = ''
+        json_str = str_item
+        str_item = ''
+    else
+        json_str = 'null'
     end
+
     return json_str
 end
 
