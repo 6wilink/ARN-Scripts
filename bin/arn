@@ -22,8 +22,12 @@ arn_mode() {
         /usr/sbin/arn-mode mesh
     elif [ "$MODE" == "car" ]; then
         /usr/sbin/arn-mode car
-    else
+    elif [ "$MODE" == "adhoc" ]; then
+        /usr/sbin/arn-mode adhoc
+    elif [ "$MODE" == "ear" ]; then
         /usr/sbin/arn-mode ear
+    else
+        echo "* unknown mode, not supported"
     fi
 }
 
