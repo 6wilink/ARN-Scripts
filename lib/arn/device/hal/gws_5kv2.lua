@@ -147,7 +147,22 @@ function gws_radio.SET_RT(key, value)
         exec(sfmt(gws_radio.cmd.region_set, value, value))
         result = false
     elseif (key == 'channel' or key == 'channo') then
-        exec(sfmt(gws_radio.cmd.channel_set, value, value))
+        -- fix "setchan" request channels when chanbw > 8, like "setchan 42 43", "setchan 43 44 45"
+        -- but gws5001app not requesting this. by Qige 2017.12.17
+        local v1 = tonumber(value) or 0
+        local chanbw = tonumber(gws_radio.update_item('chanbw')) or 0
+        local channels
+        if (chanbw > 8) then
+            local v2 = v1 + 1
+            channels = sfmt('%s %s', v1 or '', v2 or '')
+        elseif (chanbw > 16) then
+            local v2 = v1 + 1
+            local v3 = v2 + 1
+            channels = sfmt('%s %s %s', v1, v2, v3)
+        else
+            channels = value
+        end
+        exec(sfmt(gws_radio.cmd.channel_set, value, channels))
         result = false
     elseif (key == 'txpower' or key == 'txpwr') then
         exec(sfmt(gws_radio.cmd.txpower_set, value, value))
