@@ -368,6 +368,8 @@ function dev_mngr.filter_mode(value)
         result = 'car'
     elseif (value == 'MESH' or value == 'mesh') then
         result = 'mesh'
+    elseif (value == 'ADHOC' or value == 'adhoc') then
+        result = 'adhoc'
     end
     return result
 end
