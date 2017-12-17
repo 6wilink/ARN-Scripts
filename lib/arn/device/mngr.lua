@@ -355,10 +355,10 @@ function dev_mngr.filter_chanbw(value)
     local bw = value
     local range = dev_mngr.limit.chanbw_range
     local chanbw = dev_mngr.default.chanbw
-    DBG(sfmt("--------# chanbw range = list [%s]", range))
     if (bw and in_list(range, ' ', bw)) then
         chanbw = bw
     end
+    DBG(sfmt("--------# chanbw range = chanbw/list [%s/%s]", chanbw, range))
     return chanbw
 end
 
@@ -368,6 +368,8 @@ function dev_mngr.filter_mode(value)
         result = 'car'
     elseif (value == 'MESH' or value == 'mesh') then
         result = 'mesh'
+    elseif (value == 'ADHOC' or value == 'adhoc') then
+        result = 'adhoc'
     end
     return result
 end

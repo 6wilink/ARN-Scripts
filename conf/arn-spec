@@ -8,7 +8,6 @@ config arn-spec 'v1'
     option freq_max '790'
 
     option txpower_min 9
-    option txpower_max 31
+    option txpower_max 40
 
-    option cache_timeout 60
-  
+    option cache_timeout 15

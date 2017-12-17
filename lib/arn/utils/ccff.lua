@@ -150,7 +150,10 @@ function ccff.val.in_list(list, delim, s)
     local result = false
     local ranges = ccff.split(list, delim)
     for idx, val in pairs(ranges) do
-        if (val == s) then 
+        -- 2017.12.17 fix value compare
+        local sv = tostring(val)
+        local ss = tostring(s)
+        if (sv and ss and sv == ss) then 
             result = true
             break
         end

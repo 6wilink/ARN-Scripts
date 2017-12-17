@@ -42,17 +42,17 @@ arn_wds_adhoc() {
 
 [ -n "$1" ] && {
     if [ "$1" == "car" ] || [ "$1" == "CAR" ]; then
-        arn_wds_car
         /usr/sbin/config_car >/dev/null 2>&1
+        arn_wds_car
     elif [ "$1" == "ear" ] || [ "$1" == "EAR" ]; then
-        arn_wds_ear
         /usr/sbin/config_ear >/dev/null 2>&1
+        arn_wds_ear
     elif [ "$1" == "mesh" ] || [ "$1" == "MESH" ]; then
-        arn_wds_mesh
         /usr/sbin/config_mesh >/dev/null 2>&1
+        arn_wds_mesh
     elif [ "$1" == "adhoc" ] || [ "$1" == "ADHOC" ]; then
-        arn_wds_adhoc
         /usr/sbin/config_adhoc >/dev/null 2>&1
+        arn_wds_adhoc
     else
         echo " unknown mode"
     fi

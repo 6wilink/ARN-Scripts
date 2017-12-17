@@ -113,6 +113,8 @@ function gws_abb.set(key, value)
             cmd = 'config_ear; arn_ear\n'
         elseif (value == 'mesh' or value == 'MESH') then
             cmd = 'config_mesh; arn_mesh\n'
+        elseif (value == 'adhoc' or value == 'ADHOC') then
+            cmd = 'config_adhoc; arn_adhoc\n'
         end
     elseif (key == 'chanbw') then
         cmd = sfmt('setchanbw %d\n', value)
