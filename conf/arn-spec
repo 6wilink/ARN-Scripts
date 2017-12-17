@@ -1,6 +1,6 @@
 # by Qige <qigezhao@gmail.com>
 config arn-spec 'v1'
-    option chanbw '5 6 8 10 16 20 24'
+    option chanbw '5 6 8 10 12 16 20 24'
 
     option region_min 0
     option region_max 1
