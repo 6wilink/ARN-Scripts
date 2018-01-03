@@ -27,6 +27,7 @@ local Uhf           = require 'arn.device.uhf'
 local Ccff          = require 'arn.utils.ccff'
 local Cache         = require 'arn.utils.cache'
 
+local fwrite        = Ccff.file.write
 local exec          = Ccff.execute
 local conf_get      = Ccff.conf.get
 local util_set      = Ccff.conf.set
@@ -586,6 +587,11 @@ function dev_mngr.SAFE_GET(with_unit)
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
     DBG("+ return result < freq=" .. (result.radio_safe.freq or '-'))
     return result
+end
+
+function dev_mngr.CLEAR()
+    local cache_file = dev_mngr.conf.fcache_radio
+    fwrite(cache_file, '')
 end
 
 

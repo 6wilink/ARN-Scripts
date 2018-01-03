@@ -37,7 +37,7 @@ local arg_val = tostring(arg[2]) -- nil > 'nil'
 local function help()
   print "usage: "
   print "  arn-mngr [a|all]"
-  print "  arn-mngr [c|channel|r|region|p|txpower|b|chanbw|f|freq] [value]"
+  print "  arn-mngr [channel|region|txpower|chanbw|freq] [value]"
 end
 
 local function concat_items(obj)
@@ -183,7 +183,11 @@ if (arg_key ~= 'nil') then
         print_set_result(k, v)
     else
         DBG(sfmt("> %s", arg_key))
-        print_with_filter(arg_key)
+        if (arg_key == 'clear') then
+            mngr.CLEAR()
+        else
+            print_with_filter(arg_key)
+        end
     end
 else
     help()

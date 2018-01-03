@@ -14,6 +14,7 @@ help() {
   echo "  arn [-a] [-m]"
   echo "  arn [-R 0|1] [-C n] [-F n] [-B 6|8|16|24] [-P n]"
   echo "  arn [-T 1|0] [-M car|ear|mesh]"
+  echo "  arn [-c]"
 }
 
 arn_mode() {
@@ -50,40 +51,24 @@ while getopts "jamM:cC:rR:bB:pP:fF:hT:v" OPT; do
             $ARN_MNGR json
             break
             ;;
-        f)
-            $ARN_MNGR freq
-            break
-            ;;
         F)
             $ARN_MNGR freq $OPTARG
             break
             ;;
         c)
-            $ARN_MNGR channel
+            $ARN_MNGR clear
             break
             ;;
         C)
             $ARN_MNGR channel $OPTARG
             break
             ;;
-        r)
-            $ARN_MNGR region
-            break
-            ;;
         R)
             $ARN_MNGR region $OPTARG
             break
             ;;
-        p)
-            $ARN_MNGR txpower
-            break
-            ;;
         P)
             $ARN_MNGR txpower $OPTARG
-            break
-            ;;
-        b)
-            $ARN_MNGR chanbw
             break
             ;;
         B)
