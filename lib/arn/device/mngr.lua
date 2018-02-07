@@ -530,10 +530,10 @@ function dev_mngr.set_with_filter(key, value)
     DBG("--+ call HAL_SET()")
     result = DEV_HAL.HAL_SET_RT(key, val)
     if (result) then
-        DBG(sfmt("err: set %s=%s failed", key, value))
+        DBG(sfmt("err: set %s=%s failed", key or '-', value or '-'))
     else
         if (key ~= 'tx') then
-            DBG(sfmt("--+ call save_config(k=%s,v=%s)", key, value))
+            DBG(sfmt("--+ call save_config(k=%s,v=%s)", key or '-', value or '-'))
             dev_mngr.save_config(key, val)
             -- timeout & clean cache after set
             local cache_file = dev_mngr.conf.fcache_radio
