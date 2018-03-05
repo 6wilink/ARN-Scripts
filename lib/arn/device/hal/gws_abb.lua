@@ -15,6 +15,7 @@ TODO:
 local function DBG(msg) end
 
 local iwinfo = require "iwinfo"
+local rarp = require 'arn.utils.rarp'
 
 local ccff = require "arn.utils.ccff"
 local fget  = ccff.conf.get
@@ -235,8 +236,11 @@ function gws_abb.peers(bssid, noise)
             local signal = gws_abb.format.rf_val(ae.signal)
             local inactive = n(ae.inactive) or 65535
             if (signal ~= 0 and signal > noise and inactive < gws_abb.bar.peer_inactive) then
+                local wmac = s(ai) or ''
+                local pip = rarp.FETCH_IP(wmac, 1) or ''
                 peer.bssid = bssid
-                peer.wmac = s(ai) or '----'
+                peer.wmac = wmac
+                peer.ip = pip
 
                 peer.signal = signal or noise
                 peer.noise = noise

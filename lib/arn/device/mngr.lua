@@ -16,6 +16,8 @@ LOG
     2017.08.16  nw_thrpt|Util.Cache|display timeout|+4K
 
     2017.08.18  re-write after ARN-TPC
+    
+    2018.01.17  add "network.bytes", "network.interval" for omc
 ]]--
 
 -- DEBUG USE ONLY
@@ -26,7 +28,9 @@ local function DBG(msg) end
 local Uhf           = require 'arn.device.uhf'
 local Ccff          = require 'arn.utils.ccff'
 local Cache         = require 'arn.utils.cache'
+local JSON          = require 'arn.utils.json'
 
+local fwrite        = Ccff.file.write
 local exec          = Ccff.execute
 local conf_get      = Ccff.conf.get
 local util_set      = Ccff.conf.set
@@ -40,6 +44,7 @@ local sfmt          = string.format
 local sgsub         = string.gsub
 local slen          = string.len
 local ssub          = string.sub
+local tbl_push      = table.insert
 
 -- load ARN HAL Module
 local DEV_HAL = require 'arn.device.hal.hal_raw'
@@ -57,10 +62,10 @@ dev_mngr.conf.config            = 'arn'
 dev_mngr.conf.fcache_set_expiry = 3
 
 --dev_mngr.conf.nw_ifname         = 'br-lan'
-dev_mngr.conf.nw_eth0_cmd        = "cat /proc/net/dev | grep eth0 | awk '{print $2,$10}'"
-dev_mngr.conf.nw_brlan_cmd        = "cat /proc/net/dev | grep br-lan | awk '{print $2,$10}'"
-dev_mngr.conf.nw_wlan0_cmd        = "cat /proc/net/dev | grep wlan0 | awk '{print $2,$10}'"
-dev_mngr.conf.nw_cache_intl     = 5
+dev_mngr.conf.nw_eth0_cmd       = "cat /proc/net/dev | grep eth0 | awk '{print $2,$10}'"
+dev_mngr.conf.nw_brlan_cmd      = "cat /proc/net/dev | grep br-lan | awk '{print $2,$10}'"
+dev_mngr.conf.nw_wlan0_cmd      = "cat /proc/net/dev | grep wlan0 | awk '{print $2,$10}'"
+dev_mngr.conf.nw_cache_intl     = 10
 
 dev_mngr.conf.fcache_radio      = '/tmp/.arn-cache.radio'
 dev_mngr.conf.fcache_nw         = '/tmp/.arn-cache.nw'
@@ -163,6 +168,7 @@ function dev_mngr.kpi_cached_raw()
     result.abb_safe_rt = abb_safe_rt
     result.radio_hal = radio_hal
     result.nw_thrpt = nw_thrpt
+    DBG(JSON.Encode(result.nw_thrpt))
     return result
 end
 
@@ -175,15 +181,21 @@ function dev_mngr.kpi_nw_counters_rt()
 
     result.rx = 0
     result.tx = 0
+    result.bytes = {}
     if (is_array(rxtx_bytes)) then
         if (#rxtx_bytes >= 6) then
             result.rx = rxtx_bytes[1] + rxtx_bytes[3] + rxtx_bytes[5]
             result.tx = rxtx_bytes[2] + rxtx_bytes[4] + rxtx_bytes[6]
+            tbl_push(result.bytes, { ifname = 'eth0', rx = rxtx_bytes[1], tx = rxtx_bytes[2] })
+            tbl_push(result.bytes, { ifname = 'brlan', rx = rxtx_bytes[3], tx = rxtx_bytes[4] })
+            tbl_push(result.bytes, { ifname = 'wlan0', rx = rxtx_bytes[5], tx = rxtx_bytes[6] })
         elseif (#rxtx_bytes >= 2) then
             result.rx = rxtx_bytes[1]
             result.tx = rxtx_bytes[2]
+            tbl_push(result.bytes, { ifname = 'eth0', rx = result.rx, tx = result.tx })
         end
     end
+    
     result.ts = os.time()
     return result
 end
@@ -225,12 +237,15 @@ function dev_mngr.kpi_nw_thrpt_calc()
     local cache_file = dev_mngr.conf.fcache_nw
     DBG(sfmt("--------+ cache file: %s", cache_file))
     local cache = Cache.LOAD_VALID(cache_file, dev_mngr.conf.nw_cache_intl + 1)
+    --DBG(cache.bytes)
     if (is_array(cache)) then
         DBG("--------+ cache NW Thrpt valid")
         local nw_rxtx_last = cache
         local elapsed = (nw_rxtx_rt.ts or 0) - (nw_rxtx_last.ts or 0)
         result.rx = dev_mngr.calc_thrpt(nw_rxtx_rt.rx or 0, nw_rxtx_last.rx or 0, elapsed)
         result.tx = dev_mngr.calc_thrpt(nw_rxtx_rt.tx or 0, nw_rxtx_last.tx or 0, elapsed)
+        
+        result.interval = elapsed
         if (elapsed >= dev_mngr.conf.nw_cache_intl) then
             DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
             Cache.SAVE(cache_file, nw_rxtx_rt)
@@ -239,10 +254,19 @@ function dev_mngr.kpi_nw_thrpt_calc()
         DBG("--------+ Bad NW Thrpt cache")
         result.rx = 0
         result.tx = 0
+        
+        result.interval = 1
 
         DBG(sfmt("--------+ Save NW Thrpt cache (rx=%s,tx=%s)", nw_rxtx_rt.rx, nw_rxtx_rt.tx))
         Cache.SAVE(cache_file, nw_rxtx_rt)
     end
+    -- format interval
+    result.ts = nw_rxtx_rt.ts or os.time()
+    result.bytes = nw_rxtx_rt.bytes
+    if ((not result.interval) or result.interval < 1) then
+        result.interval = 1
+    end
+    DBG(JSON.Encode(result))
     return result
 end
 
@@ -506,10 +530,10 @@ function dev_mngr.set_with_filter(key, value)
     DBG("--+ call HAL_SET()")
     result = DEV_HAL.HAL_SET_RT(key, val)
     if (result) then
-        DBG(sfmt("err: set %s=%s failed", key, val))
+        DBG(sfmt("err: set %s=%s failed", key or '-', value or '-'))
     else
         if (key ~= 'tx') then
-            DBG(sfmt("--+ call save_config(k=%s,v=%s)", key, value))
+            DBG(sfmt("--+ call save_config(k=%s,v=%s)", key or '-', value or '-'))
             dev_mngr.save_config(key, val)
             -- timeout & clean cache after set
             local cache_file = dev_mngr.conf.fcache_radio
@@ -586,6 +610,11 @@ function dev_mngr.SAFE_GET(with_unit)
     DBG("+ result is safe to use < noise=" .. result.abb_safe.noise)
     DBG("+ return result < freq=" .. (result.radio_safe.freq or '-'))
     return result
+end
+
+function dev_mngr.CLEAR()
+    local cache_file = dev_mngr.conf.fcache_radio
+    fwrite(cache_file, '')
 end
 
 

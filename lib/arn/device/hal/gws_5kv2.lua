@@ -37,11 +37,11 @@ gws_radio.cmd.rfinfo_lock   = '/tmp/.GWS5Kv2.lock'
 gws_radio.cmd.rfinfo_wait   = 'sleep 1'
 gws_radio.cmd.rfinfo        = 'echo > /tmp/.GWS5Kv2.tmp; `which gws5001app` rfinfo >/dev/null 2>&1; `which gws5001app` rfinfo 2>/dev/null > /tmp/.GWS5Kv2.tmp'
 gws_radio.cmd.rfinfo_all    = 'cat /tmp/.GWS5Kv2.tmp 2>/dev/null'
-gws_radio.cmd.region        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Region | grep [01]* -o'
+gws_radio.cmd.region        = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Region | awk '{print $3}'"
 gws_radio.cmd.channel       = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan: | awk '{print $2}'"
-gws_radio.cmd.txpower       = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Tx | grep Power | grep [0-9\.]* -o'
-gws_radio.cmd.chanbw        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan | grep BW | grep [0-9]* -o'
-gws_radio.cmd.rxgain        = 'cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Rx | grep Gain | grep [0-9\.]* -o'
+gws_radio.cmd.txpower       = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Tx | grep Power | awk '{print $3}'"
+gws_radio.cmd.chanbw        = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Chan | grep BW | awk '{print $3}'"
+gws_radio.cmd.rxgain        = "cat /tmp/.GWS5Kv2.tmp 2> /dev/null | grep Rx | grep Gain | awk '{print $3}'"
 
 gws_radio.cmd.region_set    = '`which gws5001app` setregion %s 2> /dev/null; setregion %s 2> /dev/null; '
 gws_radio.cmd.channel_set   = '`which gws5001app` setchan %s 2> /dev/null; setchan %s 2> /dev/null; '
