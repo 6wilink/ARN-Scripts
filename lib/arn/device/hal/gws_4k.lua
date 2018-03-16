@@ -7,8 +7,8 @@ Note:
     2017.08.16 update_rt
 ]]--
 
-local DBG = print
---local function DBG(msg) end
+--local DBG = print
+local function DBG(msg) end
 
 local ccff = require 'arn.utils.ccff'
 local uhf = require 'arn.device.uhf'
@@ -18,6 +18,8 @@ local vint = ccff.val.n
 local sfmt = string.format
 local ssub = string.sub
 local slen = string.len
+local fread = ccff.file.read
+local fwrite = ccff.file.write
 
 local gws_radio = {}
 
