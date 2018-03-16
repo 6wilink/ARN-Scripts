@@ -8,8 +8,8 @@ Note:
     2017.10.19 dismiss error, function and data not verified
 ]]--
 
-local DBG = print
---local function DBG(msg) end
+--local DBG = print
+local function DBG(msg) end
 
 local ccff = require 'arn.utils.ccff'
 local uhf = require 'arn.device.uhf'
